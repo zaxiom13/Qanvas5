@@ -376,6 +376,7 @@ class QSession {
     this.stderrBuffer = '';
     this.pending = new Map();
     this.nextId = 1;
+    this.onStdoutLine = null;
   }
 
   async start() {
@@ -414,20 +415,28 @@ class QSession {
   _drainStdout() {
     let idx = this.stdoutBuffer.indexOf('\n');
     while (idx >= 0) {
-      const line = this.stdoutBuffer.slice(0, idx).trim();
+      const raw = this.stdoutBuffer.slice(0, idx);
       this.stdoutBuffer = this.stdoutBuffer.slice(idx + 1);
+      const line = raw.replace(/\r$/, '');
+      const trimmed = line.trim();
+      let handledProtocol = false;
 
-      if (line.startsWith('{') && line.endsWith('}')) {
+      if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
         try {
-          const msg = JSON.parse(line);
+          const msg = JSON.parse(trimmed);
           const pending = this.pending.get(msg.id);
           if (pending) {
             this.pending.delete(msg.id);
             pending.resolve(msg.result);
+            handledProtocol = true;
           }
         } catch {
-          // Ignore non-protocol lines.
+          // Fall through to regular stdout forwarding.
         }
+      }
+
+      if (!handledProtocol && trimmed && typeof this.onStdoutLine === 'function') {
+        this.onStdoutLine(line);
       }
 
       idx = this.stdoutBuffer.indexOf('\n');
@@ -475,7 +484,8 @@ class QSession {
     }
 
     const id = this.nextId++;
-    const cmd = `.p5.dispatch[${id};{${fnExpr}}]\n`;
+    // Trailing semicolon suppresses q REPL echo (e.g. internal `-1` spam).
+    const cmd = `.p5.dispatch[${id};{${fnExpr}}];\n`;
 
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
@@ -536,6 +546,9 @@ wss.on('connection', async (ws) => {
   const q = new QSession();
   let running = false;
   let messageQueue = Promise.resolve();
+  q.onStdoutLine = (line) => {
+    sendJson(ws, { type: 'stdout', line });
+  };
 
   try {
     await q.start();
@@ -597,6 +610,7 @@ wss.on('connection', async (ws) => {
 
   ws.on('close', async () => {
     running = false;
+    q.onStdoutLine = null;
     await q.close();
   });
 });

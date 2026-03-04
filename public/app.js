@@ -17,6 +17,7 @@ const helpModal = document.getElementById('helpModal');
 const helpCloseBtn = document.getElementById('helpCloseBtn');
 const setupDrawGuideEl = document.getElementById('setupDrawGuide');
 const apiGlossaryEl = document.getElementById('apiGlossary');
+const primitiveColumnsEl = document.getElementById('primitiveColumns');
 
 const STORAGE_KEY = 'p5q:workspace:v1';
 const LEGACY_SKETCH_KEY = 'p5q:lastSketch:v3';
@@ -90,6 +91,87 @@ const API_GLOSSARY = [
   'Text options: textSize[n], textAlign[a; b], textFont[name; size]',
   'Transforms: push[], pop[], translate[x;y], rotate[a], scale[sx; sy]',
   'Math/utils: random[a; b], map[v;a1;a2;b1;b2], constrain[v;lo;hi], sin[x], cos[x]'
+];
+
+const P5Q_API_FUNCTIONS = [
+  'createCanvas',
+  'resizeCanvas',
+  'frameRate',
+  'background',
+  'clear',
+  'fill',
+  'noFill',
+  'stroke',
+  'noStroke',
+  'strokeWeight',
+  'line',
+  'rect',
+  'circle',
+  'ellipse',
+  'triangle',
+  'point',
+  'text',
+  'textSize',
+  'textAlign',
+  'textFont',
+  'push',
+  'pop',
+  'translate',
+  'rotate',
+  'scale',
+  'random',
+  'map',
+  'constrain',
+  'sin',
+  'cos'
+];
+
+const PRIMITIVE_COLUMN_HELP = [
+  'circle[t]: required x, y, d; aliases cx, cy, diameter; optional fillR/fillG/fillB, strokeR/strokeG/strokeB, strokeWeight',
+  'rect[t]: required x, y, w, h; aliases width, height; optional r (corner radius) + color/stroke columns',
+  'line[t]: required x1, y1, x2, y2; optional strokeR/strokeG/strokeB, strokeWeight',
+  'ellipse[t]: required x, y, w, h; aliases width, height; optional color/stroke columns',
+  'triangle[t]: required x1, y1, x2, y2, x3, y3; optional color/stroke columns',
+  'point[t]: required x, y; optional strokeR/strokeG/strokeB, strokeWeight',
+  'text[t]: required txt, x, y; alias text for txt; optional color/stroke columns'
+];
+
+const TABLE_SNIPPETS = [
+  {
+    label: '/circle',
+    documentation: 'Insert circle table template',
+    insertText: 'circle[([] x:enlist ${1:120f}; y:enlist ${2:90f}; d:enlist ${3:36f}; fillR:enlist ${4:255i}; fillG:enlist ${5:255i}; fillB:enlist ${6:255i})];'
+  },
+  {
+    label: '/rect',
+    documentation: 'Insert rect table template',
+    insertText: 'rect[([] x:enlist ${1:100f}; y:enlist ${2:70f}; w:enlist ${3:140f}; h:enlist ${4:80f}; fillR:enlist ${5:255i}; fillG:enlist ${6:255i}; fillB:enlist ${7:255i})];'
+  },
+  {
+    label: '/line',
+    documentation: 'Insert line table template',
+    insertText: 'line[([] x1:enlist ${1:20f}; y1:enlist ${2:20f}; x2:enlist ${3:180f}; y2:enlist ${4:100f}; strokeR:enlist ${5:255i}; strokeG:enlist ${6:255i}; strokeB:enlist ${7:255i}; strokeWeight:enlist ${8:2f})];'
+  },
+  {
+    label: '/ellipse',
+    documentation: 'Insert ellipse table template',
+    insertText: 'ellipse[([] x:enlist ${1:120f}; y:enlist ${2:90f}; w:enlist ${3:70f}; h:enlist ${4:40f}; fillR:enlist ${5:255i}; fillG:enlist ${6:255i}; fillB:enlist ${7:255i})];'
+  },
+  {
+    label: '/triangle',
+    documentation: 'Insert triangle table template',
+    insertText: 'triangle[([] x1:enlist ${1:80f}; y1:enlist ${2:50f}; x2:enlist ${3:130f}; y2:enlist ${4:120f}; x3:enlist ${5:30f}; y3:enlist ${6:120f}; fillR:enlist ${7:255i}; fillG:enlist ${8:255i}; fillB:enlist ${9:255i})];'
+  },
+  {
+    label: '/point',
+    documentation: 'Insert point table template',
+    insertText: 'point[([] x:enlist ${1:120f}; y:enlist ${2:90f}; strokeR:enlist ${3:255i}; strokeG:enlist ${4:255i}; strokeB:enlist ${5:255i}; strokeWeight:enlist ${6:2f})];'
+  },
+  {
+    label: '/text',
+    documentation: 'Insert text table template',
+    insertText: 'text[([] txt:enlist "${1:hello}"; x:enlist ${2:24f}; y:enlist ${3:40f}; fillR:enlist ${4:255i}; fillG:enlist ${5:255i}; fillB:enlist ${6:255i})];'
+  }
 ];
 
 const SETUP_DRAW_GUIDE = [
@@ -467,6 +549,7 @@ function fillExamplesDropdown() {
 function fillHelpContent() {
   setupDrawGuideEl.innerHTML = '';
   apiGlossaryEl.innerHTML = '';
+  primitiveColumnsEl.innerHTML = '';
 
   for (const line of SETUP_DRAW_GUIDE) {
     const li = document.createElement('li');
@@ -479,11 +562,18 @@ function fillHelpContent() {
     li.textContent = line;
     apiGlossaryEl.appendChild(li);
   }
+
+  for (const line of PRIMITIVE_COLUMN_HELP) {
+    const li = document.createElement('li');
+    li.textContent = line;
+    primitiveColumnsEl.appendChild(li);
+  }
 }
 
 function log(message) {
   const ts = new Date().toLocaleTimeString();
-  consoleEl.textContent = `[${ts}] ${message}\n${consoleEl.textContent}`;
+  consoleEl.textContent += `[${ts}] ${message}\n`;
+  consoleEl.scrollTop = consoleEl.scrollHeight;
 }
 
 function setStatus(text) {
@@ -557,6 +647,66 @@ function toggleLineComments(editor, monaco) {
   }
 }
 
+function registerQCompletions(monaco) {
+  const keywords = Array.isArray(window.BOOTHROYD_Q_SYNTAX?.keywords) ? window.BOOTHROYD_Q_SYNTAX.keywords : [];
+  const allWords = Array.from(new Set([...keywords, ...P5Q_API_FUNCTIONS]));
+  if (allWords.length === 0) {
+    return;
+  }
+
+  monaco.languages.registerCompletionItemProvider('kbd/q', {
+    triggerCharacters: ['.', '`', '_'],
+    provideCompletionItems(model, position) {
+      const wordInfo = model.getWordUntilPosition(position);
+      const range = new monaco.Range(
+        position.lineNumber,
+        wordInfo.startColumn,
+        position.lineNumber,
+        wordInfo.endColumn
+      );
+      const prefix = (wordInfo.word || '').toLowerCase();
+
+      const suggestions = allWords
+        .filter((word) => !prefix || word.toLowerCase().startsWith(prefix))
+        .map((word) => ({
+          label: word,
+          kind: P5Q_API_FUNCTIONS.includes(word)
+            ? monaco.languages.CompletionItemKind.Function
+            : monaco.languages.CompletionItemKind.Keyword,
+          insertText: word,
+          range
+        }));
+
+      return { suggestions };
+    }
+  });
+
+  monaco.languages.registerCompletionItemProvider('kbd/q', {
+    triggerCharacters: ['/'],
+    provideCompletionItems(model, position) {
+      const linePrefix = model.getLineContent(position.lineNumber).slice(0, position.column - 1);
+      const match = linePrefix.match(/\/[A-Za-z]*$/);
+      if (!match) {
+        return { suggestions: [] };
+      }
+      const typed = match[0].toLowerCase();
+      const startCol = position.column - match[0].length;
+      const range = new monaco.Range(position.lineNumber, startCol, position.lineNumber, position.column);
+
+      const suggestions = TABLE_SNIPPETS.filter((s) => s.label.startsWith(typed)).map((s) => ({
+        label: s.label,
+        kind: monaco.languages.CompletionItemKind.Snippet,
+        documentation: s.documentation,
+        insertText: s.insertText,
+        insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+        range
+      }));
+
+      return { suggestions };
+    }
+  });
+}
+
 function initMonacoEditor() {
   const initial = activeTab().code;
   if (!window.require) {
@@ -581,6 +731,7 @@ function initMonacoEditor() {
       monaco.languages.register({ id: 'kbd/q' });
       monaco.languages.setMonarchTokensProvider('kbd/q', window.BOOTHROYD_Q_SYNTAX || {});
     }
+    registerQCompletions(monaco);
 
     monaco.editor.defineTheme('p5q-dark', {
       base: 'vs-dark',
@@ -661,6 +812,10 @@ function connect() {
     if (msg.type === 'stepResult') {
       awaitingFrame = false;
       activeCommands = msg.commands || [];
+    }
+
+    if (msg.type === 'stdout') {
+      log(String(msg.line || ''));
     }
 
     if (msg.type === 'runtimeError' || msg.type === 'serverError') {

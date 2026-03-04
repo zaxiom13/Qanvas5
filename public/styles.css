@@ -156,10 +156,15 @@ button.ghost {
 
 .outputPanel {
   height: 220px;
+  position: relative;
+  z-index: 1;
 }
 
 .codePanel {
   border-bottom: 2px solid var(--ink);
+  position: relative;
+  overflow: visible;
+  z-index: 3;
 }
 
 .paneHeader {
@@ -238,7 +243,7 @@ button.ghost {
   width: 100%;
   border: 0;
   background: #131312;
-  overflow: hidden;
+  overflow: visible;
 }
 
 #canvasHost {
