@@ -582,10 +582,39 @@ function initMonacoEditor() {
       monaco.languages.setMonarchTokensProvider('kbd/q', window.BOOTHROYD_Q_SYNTAX || {});
     }
 
+    monaco.editor.defineTheme('p5q-dark', {
+      base: 'vs-dark',
+      inherit: true,
+      rules: [
+        { token: '', foreground: 'E9EDF2' },
+        { token: 'keyword', foreground: '5FB3FF', fontStyle: 'bold' },
+        { token: 'variable', foreground: 'E6F2FF' },
+        { token: 'delimiter', foreground: 'FFB86C' },
+        { token: 'symbol', foreground: 'A6E22E' },
+        { token: 'number', foreground: 'F8D66D' },
+        { token: 'number.float', foreground: 'F8D66D' },
+        { token: 'date', foreground: '9BE9A8' },
+        { token: 'time', foreground: '9BE9A8' },
+        { token: 'string', foreground: 'F6A5C0' },
+        { token: 'comment', foreground: '7D8B99', fontStyle: 'italic' }
+      ],
+      colors: {
+        'editor.background': '#121722',
+        'editor.foreground': '#E9EDF2',
+        'editorLineNumber.foreground': '#5B6572',
+        'editorLineNumber.activeForeground': '#9FB2C6',
+        'editorCursor.foreground': '#FFD166',
+        'editor.selectionBackground': '#2A3A52',
+        'editor.inactiveSelectionBackground': '#243246',
+        'editorIndentGuide.background1': '#1E2736',
+        'editorIndentGuide.activeBackground1': '#2F415B'
+      }
+    });
+
     monacoEditor = monaco.editor.create(editorEl, {
       value: initial,
       language: 'kbd/q',
-      theme: 'vs-dark',
+      theme: 'p5q-dark',
       minimap: { enabled: false },
       fontFamily: 'IBM Plex Mono',
       fontSize: 14,
