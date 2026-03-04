@@ -96,6 +96,12 @@ npm start
 
 Then open `http://localhost:5173`.
 
+## Demo Videos
+
+<video src="./docs/demos/bouncing-dots.mp4" controls muted playsinline width="900"></video>
+
+<video src="./docs/demos/particle-fountain.mp4" controls muted playsinline width="900"></video>
+
 ## Notes
 
 - This keeps backend logic intentionally minimal.

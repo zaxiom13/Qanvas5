@@ -1,0 +1,35 @@
+# Dependencies
+node_modules/
+
+# Runtime/temp
+.tmp/
+tmp/
+*.tmp
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Test/demo artifacts
+coverage/
+test-results/
+playwright-report/
+blob-report/
+
+# Env / local config
+.env
+.env.*
+!.env.example
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+.lsp/
+.clj-kondo/

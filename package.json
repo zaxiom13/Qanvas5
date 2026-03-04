@@ -6,9 +6,14 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node --test --test-concurrency=1"
+    "test": "node --test --test-concurrency=1",
+    "demo:record": "playwright test demo/record-demo.spec.js",
+    "demo:record:headed": "playwright test demo/record-demo.spec.js --headed"
   },
   "dependencies": {
     "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.2"
   }
 }
