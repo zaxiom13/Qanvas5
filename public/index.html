@@ -22,7 +22,6 @@
             <button id="exampleBtn" class="ghost" aria-label="Open examples" aria-expanded="false">Examples ▾</button>
             <div id="examplePanel" class="menuPanel" hidden></div>
           </div>
-          <button id="helpBtn" class="ghost">Help</button>
           <div class="menuWrap">
             <button id="menuBtn" class="ghost menuBtn" aria-label="Open menu" aria-expanded="false">☰</button>
             <div id="menuPanel" class="menuPanel" hidden>
@@ -50,34 +49,33 @@
         </section>
 
         <section class="previewPane">
-          <div class="paneHeader">Preview</div>
-          <div id="canvasHost"></div>
+          <div class="paneHeader previewTabs">
+            <button id="previewTabBtn" class="tabBtn active" type="button">Preview</button>
+            <button id="helpTabBtn" class="tabBtn" type="button">Help</button>
+          </div>
+          <div id="previewView" class="previewView">
+            <div id="canvasHost"></div>
+          </div>
+          <div id="helpView" class="helpView" hidden>
+            <section>
+              <h3>How `setup` and `draw` Work</h3>
+              <ul id="setupDrawGuide"></ul>
+            </section>
+            <section>
+              <h3>API Glossary</h3>
+              <ul id="apiGlossary"></ul>
+            </section>
+            <section>
+              <h3>Primitive Table Columns</h3>
+              <ul id="primitiveColumns"></ul>
+            </section>
+            <section>
+              <h3>Input and Document Fields</h3>
+              <ul id="inputDocumentFields"></ul>
+            </section>
+          </div>
         </section>
       </main>
-    </div>
-    <div id="helpModal" class="helpModal" hidden>
-      <div class="helpCard">
-        <div class="helpHead">
-          <h2>p5q Help</h2>
-          <button id="helpCloseBtn" class="ghost">Close</button>
-        </div>
-        <section>
-          <h3>How `setup` and `draw` Work</h3>
-          <ul id="setupDrawGuide"></ul>
-        </section>
-        <section>
-          <h3>API Glossary</h3>
-          <ul id="apiGlossary"></ul>
-        </section>
-        <section>
-          <h3>Primitive Table Columns</h3>
-          <ul id="primitiveColumns"></ul>
-        </section>
-        <section>
-          <h3>Input and Document Fields</h3>
-          <ul id="inputDocumentFields"></ul>
-        </section>
-      </div>
     </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.2/min/vs/loader.min.js"></script>
     <script src="/qSyntax.js"></script>

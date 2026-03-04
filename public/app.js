@@ -12,9 +12,10 @@ const tabListEl = document.getElementById('tabList');
 const addTabBtn = document.getElementById('addTabBtn');
 const exampleBtn = document.getElementById('exampleBtn');
 const examplePanel = document.getElementById('examplePanel');
-const helpBtn = document.getElementById('helpBtn');
-const helpModal = document.getElementById('helpModal');
-const helpCloseBtn = document.getElementById('helpCloseBtn');
+const previewTabBtn = document.getElementById('previewTabBtn');
+const helpTabBtn = document.getElementById('helpTabBtn');
+const previewView = document.getElementById('previewView');
+const helpView = document.getElementById('helpView');
 const setupDrawGuideEl = document.getElementById('setupDrawGuide');
 const apiGlossaryEl = document.getElementById('apiGlossary');
 const primitiveColumnsEl = document.getElementById('primitiveColumns');
@@ -975,20 +976,6 @@ addTabBtn.addEventListener('click', () => {
   addHelperTab();
 });
 
-helpBtn.addEventListener('click', () => {
-  helpModal.hidden = false;
-});
-
-helpCloseBtn.addEventListener('click', () => {
-  helpModal.hidden = true;
-});
-
-helpModal.addEventListener('click', (event) => {
-  if (event.target === helpModal) {
-    helpModal.hidden = true;
-  }
-});
-
 function openMenu() {
   menuPanel.hidden = false;
   menuBtn.setAttribute('aria-expanded', 'true');
@@ -1009,6 +996,20 @@ function openExamplesMenu() {
 function closeExamplesMenu() {
   examplePanel.hidden = true;
   exampleBtn.setAttribute('aria-expanded', 'false');
+}
+
+function showPreviewTab() {
+  previewView.hidden = false;
+  helpView.hidden = true;
+  previewTabBtn.classList.add('active');
+  helpTabBtn.classList.remove('active');
+}
+
+function showHelpTab() {
+  previewView.hidden = true;
+  helpView.hidden = false;
+  helpTabBtn.classList.add('active');
+  previewTabBtn.classList.remove('active');
 }
 
 menuBtn.addEventListener('click', (event) => {
@@ -1037,6 +1038,14 @@ examplePanel.addEventListener('click', (event) => {
   event.stopPropagation();
 });
 
+previewTabBtn.addEventListener('click', () => {
+  showPreviewTab();
+});
+
+helpTabBtn.addEventListener('click', () => {
+  showHelpTab();
+});
+
 document.addEventListener('click', () => {
   closeMenu();
   closeExamplesMenu();
@@ -1046,7 +1055,6 @@ document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape') {
     closeMenu();
     closeExamplesMenu();
-    helpModal.hidden = true;
   }
   inputState.key = event.key || '';
   inputState.keyCode = event.keyCode || 0;
