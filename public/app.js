@@ -359,6 +359,7 @@ let sketchRunning = false;
 let awaitingFrame = false;
 let activeCommands = [];
 let setupApplied = false;
+let canvasEl = null;
 const runGate = createRunGate((payload) => send({ type: 'run', ...payload }));
 const keysDown = new Set();
 const inputState = {
@@ -883,6 +884,21 @@ function toMouseButtonName(btn) {
   return 'none';
 }
 
+function isCanvasEvent(event) {
+  if (!canvasEl || !event) {
+    return false;
+  }
+  if (event.target instanceof Node && canvasEl.contains(event.target)) {
+    return true;
+  }
+  const { clientX, clientY } = event;
+  if (typeof clientX !== 'number' || typeof clientY !== 'number') {
+    return false;
+  }
+  const rect = canvasEl.getBoundingClientRect();
+  return clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom;
+}
+
 function getInputSnapshot() {
   inputState.ts = Date.now();
   return {
@@ -1072,6 +1088,9 @@ document.addEventListener('keyup', (event) => {
 document.addEventListener(
   'wheel',
   (event) => {
+    if (!isCanvasEvent(event)) {
+      return;
+    }
     inputState.wheelDelta += Number(event.deltaY) || 0;
   },
   { passive: true }
@@ -1130,7 +1149,8 @@ function normalizeCommands(raw) {
 
 const p = new p5((sketch) => {
   sketch.setup = () => {
-    sketch.createCanvas(640, 360);
+    const renderer = sketch.createCanvas(640, 360);
+    canvasEl = renderer.elt;
     sketch.background(230);
   };
 
@@ -1139,12 +1159,23 @@ const p = new p5((sketch) => {
       return;
     }
 
+    const pointerInsideCanvas =
+      sketch.mouseX >= 0 &&
+      sketch.mouseX < sketch.width &&
+      sketch.mouseY >= 0 &&
+      sketch.mouseY < sketch.height;
+
     inputState.pmx = inputState.mx;
     inputState.pmy = inputState.my;
-    inputState.mx = sketch.mouseX;
-    inputState.my = sketch.mouseY;
-    inputState.mousePressed = sketch.mouseIsPressed;
-    inputState.mouseButton = toMouseButtonName(sketch.mouseButton);
+    if (pointerInsideCanvas) {
+      inputState.mx = sketch.mouseX;
+      inputState.my = sketch.mouseY;
+      inputState.mousePressed = sketch.mouseIsPressed;
+      inputState.mouseButton = sketch.mouseIsPressed ? toMouseButtonName(sketch.mouseButton) : 'none';
+    } else {
+      inputState.mousePressed = false;
+      inputState.mouseButton = 'none';
+    }
 
     applyCommands(activeCommands);
 
