@@ -13,6 +13,18 @@ const PORT = Number(process.env.PORT || 5173);
 const EMPTY_SETUP_ERROR = 'setup not loaded';
 const EMPTY_DRAW_ERROR = 'draw not loaded';
 
+function envInt(name, fallback) {
+  const raw = Number(process.env[name]);
+  return Number.isFinite(raw) && raw > 0 ? Math.trunc(raw) : fallback;
+}
+
+const Q_LOAD_SETTLE_MS = envInt('P5Q_LOAD_SETTLE_MS', 90);
+const Q_INVOKE_TIMEOUT_MS = envInt('P5Q_INVOKE_TIMEOUT_MS', 1800);
+const Q_CLOSE_TIMEOUT_MS = envInt('P5Q_CLOSE_TIMEOUT_MS', 400);
+const Q_MAX_RUNS_PER_SESSION = envInt('P5Q_MAX_RUNS_PER_SESSION', 50);
+const WS_PENDING_LIMIT = envInt('P5Q_WS_PENDING_LIMIT', 64);
+const TMP_FILE_MAX_AGE_MS = envInt('P5Q_TMP_FILE_MAX_AGE_MS', 60 * 60 * 1000);
+
 function getQSpawnSpec() {
   const override = process.env.P5Q_Q_BIN;
   if (override) {
@@ -40,6 +52,32 @@ function toQLoadPath(filePath, qSpawn) {
 
   const [, drive, rest] = driveMatch;
   return `/mnt/${drive.toLowerCase()}/${rest}`;
+}
+
+async function pruneTmpDir() {
+  const now = Date.now();
+  let entries;
+  try {
+    entries = await fsp.readdir(TMP_DIR, { withFileTypes: true });
+  } catch {
+    return;
+  }
+
+  await Promise.all(
+    entries
+      .filter((entry) => entry.isFile() && /^sketch-.*\.q$/i.test(entry.name))
+      .map(async (entry) => {
+        const fullPath = path.join(TMP_DIR, entry.name);
+        try {
+          const stat = await fsp.stat(fullPath);
+          if (now - stat.mtimeMs > TMP_FILE_MAX_AGE_MS) {
+            await fsp.unlink(fullPath);
+          }
+        } catch {
+          // Ignore concurrent cleanup races.
+        }
+      })
+  );
 }
 
 const RUNTIME_BOOT = [
@@ -412,10 +450,13 @@ class QSession {
     this.pending = new Map();
     this.nextId = 1;
     this.onStdoutLine = null;
+    this.poisoned = false;
+    this.runCount = 0;
   }
 
   async start() {
     await fsp.mkdir(TMP_DIR, { recursive: true });
+    await pruneTmpDir();
     this.qSpawn = getQSpawnSpec();
     const proc = spawn(this.qSpawn.command, this.qSpawn.args, {
       cwd: ROOT,
@@ -436,6 +477,7 @@ class QSession {
     });
 
     proc.on('exit', () => {
+      this.poisoned = true;
       for (const { reject } of this.pending.values()) {
         reject(new Error('q process exited'));
       }
@@ -446,6 +488,8 @@ class QSession {
     });
 
     proc.stdin.write(`${RUNTIME_BOOT}\n`);
+    this.poisoned = false;
+    this.runCount = 0;
   }
 
   _drainStdout() {
@@ -479,14 +523,19 @@ class QSession {
     }
   }
 
-  async resetAndLoad(code) {
-    if (!this.proc) {
+  async ensureFreshProcess() {
+    if (!this.proc || this.poisoned || this.runCount >= Q_MAX_RUNS_PER_SESSION) {
+      await this.close();
       this.stdoutBuffer = '';
       this.stderrBuffer = '';
       this.pending.clear();
       this.nextId = 1;
       await this.start();
     }
+  }
+
+  async resetAndLoad(code) {
+    await this.ensureFreshProcess();
 
     const sketchId = crypto.randomBytes(8).toString('hex');
     const sketchPath = path.join(TMP_DIR, `sketch-${sketchId}.q`);
@@ -504,12 +553,12 @@ class QSession {
       '\\d .'
     ].join('\n');
     await fsp.writeFile(sketchPath, `${wrapped}\n`, 'utf8');
-
     this.proc.stdin.write(`\\l ${toQLoadPath(sketchPath, this.qSpawn)}\n`);
-    await new Promise((resolve) => setTimeout(resolve, 90));
+    await new Promise((resolve) => setTimeout(resolve, Q_LOAD_SETTLE_MS));
     // q can emit non-fatal stderr lines around \l even when the script loads.
     // Actual setup/draw failures are surfaced through .p5.runsetup/.p5.rundraw.
     this.stderrBuffer = '';
+    this.runCount += 1;
   }
 
   invoke(fnExpr) {
@@ -524,8 +573,9 @@ class QSession {
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         this.pending.delete(id);
+        this.poisoned = true;
         reject(new Error('Timed out waiting for q response'));
-      }, 1800);
+      }, Q_INVOKE_TIMEOUT_MS);
 
       this.pending.set(id, {
         resolve: (value) => {
@@ -543,10 +593,30 @@ class QSession {
   }
 
   async close() {
-    if (this.proc) {
-      this.proc.kill('SIGTERM');
-      this.proc = null;
+    const proc = this.proc;
+    if (!proc) {
+      return;
     }
+
+    this.proc = null;
+    await new Promise((resolve) => {
+      let done = false;
+      const finish = () => {
+        if (!done) {
+          done = true;
+          resolve();
+        }
+      };
+
+      proc.once('exit', finish);
+      proc.kill('SIGTERM');
+      setTimeout(() => {
+        if (proc.exitCode == null) {
+          proc.kill('SIGKILL');
+        }
+        finish();
+      }, Q_CLOSE_TIMEOUT_MS);
+    });
   }
 }
 
@@ -638,6 +708,11 @@ wss.on('connection', async (ws) => {
 
   ws.on('message', (raw) => {
     if (!ready) {
+      if (pendingMessages.length >= WS_PENDING_LIMIT) {
+        sendJson(ws, { type: 'serverError', message: 'Server is still starting q; retry shortly.' });
+        ws.close();
+        return;
+      }
       pendingMessages.push(raw);
       return;
     }
