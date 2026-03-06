@@ -92,11 +92,10 @@ const HELPER_TEMPLATE = `// Helper tabs may only contain function definitions.
 
 const API_GLOSSARY = [
   'Canvas: createCanvas[w;h], resizeCanvas[w;h], frameRate[f], background[r;g;b], clear[]',
-  'Style: fill[...], noFill[], stroke[...], noStroke[], strokeWeight[w]',
   'Primitives (table-only): line[t], rect[t], circle[t], ellipse[t], triangle[t], point[t], text[t] with packed vector columns',
   'Text options: textSize[n], textAlign[a; b], textFont[name; size]',
   'Transforms: push[], pop[], translate[x;y], rotate[a], scale[sx; sy]',
-  'Math/utils: random[a; b], map[v;a1;a2;b1;b2], constrain[v;lo;hi], sin[x], cos[x]'
+  'Math: use q built-ins directly where needed'
 ];
 
 const P5Q_API_FUNCTIONS = [
@@ -105,11 +104,6 @@ const P5Q_API_FUNCTIONS = [
   'frameRate',
   'background',
   'clear',
-  'fill',
-  'noFill',
-  'stroke',
-  'noStroke',
-  'strokeWeight',
   'line',
   'rect',
   'circle',
@@ -124,22 +118,17 @@ const P5Q_API_FUNCTIONS = [
   'pop',
   'translate',
   'rotate',
-  'scale',
-  'random',
-  'map',
-  'constrain',
-  'sin',
-  'cos'
+  'scale'
 ];
 
 const PRIMITIVE_COLUMN_HELP = [
-  'circle[t]: prefer p:[x y] plus d; aliases x+y, cx+cy, diameter; optional fill/stroke as [r g b] or [r g b a]',
-  'rect[t]: prefer p:[x y] plus size:[w h]; aliases x+y, w+h, width+height, wh; optional r + fill/stroke arrays',
-  'line[t]: prefer p1:[x1 y1] and p2:[x2 y2]; aliases x1+y1 and x2+y2; optional stroke array, strokeWeight',
-  'ellipse[t]: prefer p:[x y] plus size:[w h]; aliases x+y, w+h, width+height, wh; optional fill/stroke arrays',
-  'triangle[t]: prefer p1/p2/p3 point arrays; aliases x1..y3; optional fill/stroke arrays',
-  'point[t]: prefer p:[x y]; aliases x+y; optional stroke array, strokeWeight',
-  'text[t]: required txt (or text) plus p:[x y]; aliases x+y; optional fill/stroke arrays'
+  'circle[t]: requires packed p:[x y] plus d; optional packed fill/stroke as [r g b] or [r g b a]',
+  'rect[t]: requires packed p:[x y] plus size:[w h]; optional r plus packed fill/stroke arrays',
+  'line[t]: requires packed p1:[x1 y1] and p2:[x2 y2]; optional packed stroke array and strokeWeight',
+  'ellipse[t]: requires packed p:[x y] plus size:[w h]; optional packed fill/stroke arrays',
+  'triangle[t]: requires packed p1/p2/p3 point arrays; optional packed fill/stroke arrays',
+  'point[t]: requires packed p:[x y]; optional packed stroke array and strokeWeight',
+  'text[t]: required txt (or text) plus packed p:[x y]; optional packed fill/stroke arrays'
 ];
 
 const TABLE_SNIPPETS = [
@@ -207,6 +196,7 @@ const SETUP_DRAW_GUIDE = [
   '`draw[state;input;document]` runs every frame and must return the next state table.',
   '`input` is a one-row table for frame/mouse/keyboard fields, including `tick`.',
   '`document` is a separate one-row global table with packed vectors (`c`, `v`, `d`, `s`) plus split aliases, available in setup and draw.',
+  'Primitive tables are packed-only: use `p`, `size`, `p1`/`p2`/`p3`, `fill`, `stroke`, and `strokeWeight` inside the table itself.',
   'Each helper tab must contain only function definitions (`name:{...};`).',
   'Helper functions are loaded before the main sketch and can be called from setup/draw.',
   'Shapes and text are table-only. One row = one draw call; many rows = vectorized draw.'

@@ -70,9 +70,9 @@ test('two websocket sessions stay isolated when sharing one q worker', async () 
     await waitForServer(server);
 
     const sketchA =
-      'setup:{[document]createCanvas[160;100]; ([] x:enlist 10f)};draw:{[state;input;document] background[0]; circle[([] x:first state[`x]; y:enlist 30f; d:enlist 8f)]; state};';
+      'setup:{[document]createCanvas[160;100]; ([] x:enlist 10f)};draw:{[state;input;document] background[0]; circle[([] p:enlist (first state[`x];30f); d:enlist 8f)]; state};';
     const sketchB =
-      'setup:{[document]createCanvas[160;100]; ([] x:enlist 90f)};draw:{[state;input;document] background[0]; circle[([] x:first state[`x]; y:enlist 70f; d:enlist 8f)]; state};';
+      'setup:{[document]createCanvas[160;100]; ([] x:enlist 90f)};draw:{[state;input;document] background[0]; circle[([] p:enlist (first state[`x];70f); d:enlist 8f)]; state};';
 
     const [commandsA, commandsB] = await Promise.all([runSketch(port, sketchA), runSketch(port, sketchB)]);
 

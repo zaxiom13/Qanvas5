@@ -47,16 +47,17 @@ Helper tabs:
 ## API (Current)
 
 - Canvas/frame: `createCanvas`, `resizeCanvas`, `frameRate`, `background`, `clear`
-- Style: `fill`, `noFill`, `stroke`, `noStroke`, `strokeWeight`
 - Shapes (table-only): `line`, `rect`, `circle`, `ellipse`, `triangle`, `point`
 - Text (table-only): `text`, `textSize`, `textAlign`, `textFont`
 - Transform/state: `push`, `pop`, `translate`, `rotate`, `scale`
-- Utilities: `random`, `map`, `constrain`, `sin`, `cos`
 
 ## Important Rules
 
 - Draw primitives are table-only (`line`, `rect`, `circle`, `ellipse`, `triangle`, `point`, `text`).
-- Packed vector columns are the preferred teaching style: use `p` for `[x y]`, `v` for `[vx vy]`, `size` for `[w h]`, and `fill`/`stroke` for `[r g b]` or `[r g b a]`.
+- Packed vector columns are the primitive contract: use `p` for `[x y]`, `v` for `[vx vy]`, `size` for `[w h]`, `p1`/`p2`/`p3` for vertices, and `fill`/`stroke` for `[r g b]` or `[r g b a]`.
+- Styling belongs in primitive tables. Use `fill`, `stroke`, and `strokeWeight` columns there instead of calling standalone style functions.
+- Component-wise primitive aliases like `x`, `y`, `w`, `h`, `x1`, `y1`, `diameter`, `fillR`, and `strokeR` are not supported.
+- Use q built-ins directly for math and utility work instead of p5q wrapper helpers.
 - Use `input[\`tick]` for frame-based animation instead of storing your own tick counter in state.
 - Runtime state must always be a q table.
 

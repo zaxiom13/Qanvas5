@@ -45,7 +45,7 @@ test('helper tabs can define functions and reject non-function statements', asyn
     const files = [
       {
         name: 'helpers.q',
-        code: 'makeCircle:{[x] ([] x:enlist x; y:enlist 60f; d:enlist 12f)};'
+        code: 'makeCircle:{[x] ([] p:enlist (x;60f); d:enlist 12f)};'
       }
     ];
 
