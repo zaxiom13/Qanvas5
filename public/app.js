@@ -15,14 +15,37 @@ const exampleBtn = document.getElementById('exampleBtn');
 const examplePanel = document.getElementById('examplePanel');
 const previewTabBtn = document.getElementById('previewTabBtn');
 const helpTabBtn = document.getElementById('helpTabBtn');
+const setupTabBtn = document.getElementById('setupTabBtn');
 const previewView = document.getElementById('previewView');
 const helpView = document.getElementById('helpView');
+const setupView = document.getElementById('setupView');
+const previewToggleWrap = document.getElementById('previewToggleWrap');
 const fpsToggleEl = document.getElementById('fpsToggle');
 const fpsOverlayEl = document.getElementById('fpsOverlay');
 const setupDrawGuideEl = document.getElementById('setupDrawGuide');
 const apiGlossaryEl = document.getElementById('apiGlossary');
 const primitiveColumnsEl = document.getElementById('primitiveColumns');
 const inputDocumentFieldsEl = document.getElementById('inputDocumentFields');
+const runtimeQuickBtn = document.getElementById('runtimeQuickBtn');
+const runtimeSummaryEl = document.getElementById('runtimeSummary');
+const runtimeBadgeEl = document.getElementById('runtimeBadge');
+const runtimePlatformEl = document.getElementById('runtimePlatform');
+const runtimePathEl = document.getElementById('runtimePath');
+const runtimeSourceEl = document.getElementById('runtimeSource');
+const runtimeAutoBtn = document.getElementById('runtimeAutoBtn');
+const runtimePickBtn = document.getElementById('runtimePickBtn');
+const runtimeClearBtn = document.getElementById('runtimeClearBtn');
+const openProductBtn = document.getElementById('openProductBtn');
+const openDownloadBtn = document.getElementById('openDownloadBtn');
+const openDocsBtn = document.getElementById('openDocsBtn');
+const checkUpdatesBtn = document.getElementById('checkUpdatesBtn');
+const installUpdateBtn = document.getElementById('installUpdateBtn');
+const updateBadgeEl = document.getElementById('updateBadge');
+const updateVersionEl = document.getElementById('updateVersion');
+const updateAvailableEl = document.getElementById('updateAvailable');
+const updateMessageEl = document.getElementById('updateMessage');
+
+const desktopApi = window.p5qDesktop || null;
 
 const STORAGE_KEY = 'p5q:workspace:v1';
 const LEGACY_SKETCH_KEY = 'p5q:lastSketch:v3';
@@ -347,6 +370,8 @@ let showFpsOverlay = loadFpsPreference();
 let fpsDisplayValue = 0;
 let fpsSampleCount = 0;
 let fpsLastPaintAt = 0;
+let runtimeStatus = null;
+let updateState = null;
 const INPUT_WIRE_FIELDS = Object.freeze({
   mx: 0,
   my: 1,
@@ -677,6 +702,142 @@ function fillHelpContent() {
   }
 }
 
+function sourceLabel(source) {
+  if (source === 'saved') {
+    return 'Saved selection';
+  }
+  if (source === 'auto') {
+    return 'Auto-detected';
+  }
+  if (source === 'path') {
+    return 'PATH';
+  }
+  if (source === 'wsl') {
+    return 'WSL';
+  }
+  return 'Not connected';
+}
+
+function renderGuideList(id, lines) {
+  const el = document.getElementById(id);
+  if (!el) {
+    return;
+  }
+  el.innerHTML = '';
+  for (const line of lines || []) {
+    const li = document.createElement('li');
+    li.textContent = line;
+    el.appendChild(li);
+  }
+}
+
+function renderRuntimeStatus(status) {
+  runtimeStatus = status;
+  const guides = status?.guides?.guides || {};
+  const currentPlatform = status?.platform || 'desktop';
+  const currentGuide = guides[currentPlatform] || {};
+  const linkedPath = status?.resolvedPath || status?.qBinary || 'Not linked yet';
+  const configured = Boolean(status?.configured);
+
+  runtimeSummaryEl.textContent = status?.message || 'Use the setup assistant to connect your local q runtime.';
+  runtimePlatformEl.textContent = currentGuide.title || currentPlatform;
+  runtimePathEl.textContent = linkedPath;
+  runtimeSourceEl.textContent = sourceLabel(status?.source);
+  runtimeBadgeEl.textContent = configured ? 'Ready to run' : 'Runtime setup needed';
+  runtimeBadgeEl.className = `runtimeBadge ${configured ? 'runtimeBadge-ready' : 'runtimeBadge-pending'}`;
+  runtimeAutoBtn.textContent = currentGuide.autoDetectLabel || 'Auto Detect q';
+  runtimePickBtn.hidden = currentGuide.canBrowseBinary === false;
+  runtimeQuickBtn.textContent = configured ? 'Runtime Ready' : 'Runtime Setup';
+
+  renderGuideList('guide-macos', guides.macos?.steps || []);
+  renderGuideList('guide-linux', guides.linux?.steps || []);
+  renderGuideList('guide-windows', guides.windows?.steps || []);
+
+  for (const card of document.querySelectorAll('[data-guide-card]')) {
+    card.classList.toggle('active', card.getAttribute('data-guide-card') === currentPlatform);
+  }
+}
+
+function updateBadgeClass(status) {
+  if (status === 'up-to-date' || status === 'downloaded') {
+    return 'runtimeBadge-ready';
+  }
+  if (status === 'error') {
+    return 'runtimeBadge-pending';
+  }
+  return 'runtimeBadge-pending';
+}
+
+function updateBadgeText(status) {
+  if (status === 'checking') {
+    return 'Checking';
+  }
+  if (status === 'available') {
+    return 'Found';
+  }
+  if (status === 'downloading') {
+    return 'Downloading';
+  }
+  if (status === 'downloaded') {
+    return 'Ready to install';
+  }
+  if (status === 'up-to-date') {
+    return 'Up to date';
+  }
+  if (status === 'error') {
+    return 'Update error';
+  }
+  return 'Idle';
+}
+
+function renderUpdateState(state) {
+  updateState = state;
+  const status = state?.status || 'idle';
+  updateBadgeEl.textContent = updateBadgeText(status);
+  updateBadgeEl.className = `runtimeBadge ${updateBadgeClass(status)}`;
+  updateVersionEl.textContent = state?.version || '-';
+  updateAvailableEl.textContent = state?.availableVersion || '-';
+  updateMessageEl.textContent = state?.message || 'Updates have not been checked yet.';
+  installUpdateBtn.disabled = status !== 'downloaded';
+}
+
+async function refreshRuntimeStatus() {
+  if (!desktopApi?.getRuntimeStatus) {
+    renderRuntimeStatus({
+      configured: false,
+      platform: 'browser',
+      source: null,
+      qBinary: null,
+      resolvedPath: null,
+      message: 'Browser mode is still available for tests, but the desktop app is where guided KDB-X setup lives.',
+      guides: {
+        guides: {
+          macos: { title: 'macOS', canBrowseBinary: true, autoDetectLabel: 'Auto Detect q', steps: ['Launch the Electron app for built-in setup actions.'] },
+          linux: { title: 'Linux', canBrowseBinary: true, autoDetectLabel: 'Auto Detect q', steps: ['Launch the Electron app for built-in setup actions.'] },
+          windows: { title: 'Windows', canBrowseBinary: false, autoDetectLabel: 'Test WSL q', steps: ['Launch the Electron app for built-in setup actions.'] }
+        }
+      }
+    });
+    return;
+  }
+
+  renderRuntimeStatus(await desktopApi.getRuntimeStatus());
+}
+
+async function refreshUpdateState() {
+  if (!desktopApi?.getUpdateState) {
+    renderUpdateState({
+      status: 'idle',
+      version: '-',
+      availableVersion: null,
+      message: 'Update checks are available in the packaged desktop app.'
+    });
+    return;
+  }
+
+  renderUpdateState(await desktopApi.getUpdateState());
+}
+
 function log(message) {
   const ts = new Date().toLocaleTimeString();
   consoleEl.textContent += `[${ts}] ${message}\n`;
@@ -827,7 +988,7 @@ function initMonacoEditor() {
 
   window.require.config({
     paths: {
-      vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.2/min/vs'
+      vs: '/vendor/monaco-editor/min/vs'
     }
   });
 
@@ -878,7 +1039,7 @@ function initMonacoEditor() {
       language: 'kbd/q',
       theme: 'p5q-dark',
       minimap: { enabled: false },
-      fontFamily: 'IBM Plex Mono',
+      fontFamily: 'Menlo, Consolas, monospace',
       fontSize: 14,
       lineHeight: 21,
       automaticLayout: true,
@@ -1117,15 +1278,31 @@ function closeExamplesMenu() {
 function showPreviewTab() {
   previewView.hidden = false;
   helpView.hidden = true;
+  setupView.hidden = true;
+  previewToggleWrap.hidden = false;
   previewTabBtn.classList.add('active');
   helpTabBtn.classList.remove('active');
+  setupTabBtn.classList.remove('active');
 }
 
 function showHelpTab() {
   previewView.hidden = true;
   helpView.hidden = false;
+  setupView.hidden = true;
+  previewToggleWrap.hidden = true;
   helpTabBtn.classList.add('active');
   previewTabBtn.classList.remove('active');
+  setupTabBtn.classList.remove('active');
+}
+
+function showSetupTab() {
+  previewView.hidden = true;
+  helpView.hidden = true;
+  setupView.hidden = false;
+  previewToggleWrap.hidden = true;
+  setupTabBtn.classList.add('active');
+  previewTabBtn.classList.remove('active');
+  helpTabBtn.classList.remove('active');
 }
 
 menuBtn.addEventListener('click', (event) => {
@@ -1162,6 +1339,14 @@ helpTabBtn.addEventListener('click', () => {
   showHelpTab();
 });
 
+setupTabBtn.addEventListener('click', () => {
+  showSetupTab();
+});
+
+runtimeQuickBtn.addEventListener('click', () => {
+  showSetupTab();
+});
+
 document.addEventListener('click', () => {
   closeMenu();
   closeExamplesMenu();
@@ -1187,6 +1372,78 @@ document.addEventListener('keyup', (event) => {
 
 fpsToggleEl?.addEventListener('change', () => {
   setFpsOverlayEnabled(fpsToggleEl.checked);
+});
+
+runtimeAutoBtn?.addEventListener('click', async () => {
+  if (!desktopApi?.autoConfigureRuntime) {
+    showSetupTab();
+    return;
+  }
+  runtimeSummaryEl.textContent = 'Testing and connecting your local q runtime...';
+  renderRuntimeStatus(await desktopApi.autoConfigureRuntime());
+});
+
+runtimePickBtn?.addEventListener('click', async () => {
+  if (!desktopApi?.chooseRuntimeBinary) {
+    showSetupTab();
+    return;
+  }
+  runtimeSummaryEl.textContent = 'Choose the q executable you installed with KDB-X...';
+  renderRuntimeStatus(await desktopApi.chooseRuntimeBinary());
+});
+
+runtimeClearBtn?.addEventListener('click', async () => {
+  if (!desktopApi?.clearRuntimeBinary) {
+    return;
+  }
+  runtimeSummaryEl.textContent = 'Clearing the saved runtime path...';
+  renderRuntimeStatus(await desktopApi.clearRuntimeBinary());
+});
+
+checkUpdatesBtn?.addEventListener('click', async () => {
+  if (!desktopApi?.checkForUpdates) {
+    return;
+  }
+  renderUpdateState({
+    ...(updateState || {}),
+    status: 'checking',
+    message: 'Checking GitHub Releases for a newer version...'
+  });
+  renderUpdateState(await desktopApi.checkForUpdates());
+});
+
+installUpdateBtn?.addEventListener('click', async () => {
+  if (!desktopApi?.installUpdateNow) {
+    return;
+  }
+  await desktopApi.installUpdateNow();
+});
+
+openProductBtn?.addEventListener('click', () => {
+  const url = runtimeStatus?.guides?.links?.product || 'https://kx.com/products/kdb-x/';
+  if (desktopApi?.openExternal) {
+    desktopApi.openExternal(url);
+  } else {
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }
+});
+
+openDownloadBtn?.addEventListener('click', () => {
+  const url = runtimeStatus?.guides?.links?.download || 'https://kx.com/developer/downloads/';
+  if (desktopApi?.openExternal) {
+    desktopApi.openExternal(url);
+  } else {
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }
+});
+
+openDocsBtn?.addEventListener('click', () => {
+  const url = runtimeStatus?.guides?.links?.docs || 'https://code.kx.com/';
+  if (desktopApi?.openExternal) {
+    desktopApi.openExternal(url);
+  } else {
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }
 });
 
 document.addEventListener(
@@ -1306,4 +1563,9 @@ renderTabs();
 initMonacoEditor();
 setFpsOverlayEnabled(showFpsOverlay);
 connect();
+refreshRuntimeStatus();
+refreshUpdateState();
+desktopApi?.onUpdateState?.((state) => {
+  renderUpdateState(state);
+});
 log('Ready. Press Run.');

@@ -12,7 +12,7 @@ module.exports = defineConfig({
     screenshot: 'off'
   },
   webServer: {
-    command: 'npm start',
+    command: 'npm run start:web',
     url: 'http://127.0.0.1:5173',
     reuseExistingServer: true,
     timeout: 120_000

@@ -1,9 +1,12 @@
 :root {
-  --bg: #f2efe8;
-  --ink: #141412;
-  --accent: #eb5e28;
-  --panel: #fffdf8;
-  --line: #d7d1c4;
+  --bg: #eae4d6;
+  --ink: #12110d;
+  --accent: #cb4d2a;
+  --panel: #fff9ef;
+  --line: #d8cebc;
+  --deep: #1d201d;
+  --mint: #dfe8cf;
+  --sun: #f3d78a;
   --control-h: 2.25rem;
   --header-h: 4.25rem;
   --left-pane-w: 660px;
@@ -15,11 +18,12 @@
 
 body {
   margin: 0;
-  font-family: 'Sora', sans-serif;
+  font-family: 'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', serif;
   color: var(--ink);
   background:
-    radial-gradient(circle at 0% 0%, #ffd4c0 0, transparent 45%),
-    radial-gradient(circle at 100% 100%, #d3eadf 0, transparent 35%),
+    radial-gradient(circle at 0% 0%, #f7c8a6 0, transparent 45%),
+    radial-gradient(circle at 100% 100%, #cfe2c8 0, transparent 35%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.42), transparent 50%),
     var(--bg);
   min-height: 100vh;
 }
@@ -29,10 +33,11 @@ body {
   margin: 1.2rem auto;
   border: 2px solid var(--ink);
   background: var(--panel);
-  box-shadow: 10px 10px 0 #14141222;
+  box-shadow: 14px 14px 0 rgba(18, 17, 13, 0.12);
   display: flex;
   flex-direction: column;
   height: min(920px, calc(100vh - 2.4rem));
+  overflow: hidden;
 }
 
 .topbar {
@@ -43,15 +48,31 @@ body {
   padding: 0.7rem 1rem;
   min-height: var(--header-h);
   border-bottom: 2px solid var(--ink);
-  background: linear-gradient(95deg, #f9f4e5, #faf6ee);
+  background:
+    linear-gradient(120deg, rgba(243, 215, 138, 0.55), transparent 40%),
+    linear-gradient(95deg, #f9f1dc, #f4efe5);
+}
+
+.brandWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.18rem;
 }
 
 .brand {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'Menlo', 'Consolas', monospace;
   font-weight: 700;
-  font-size: 1.2rem;
+  font-size: 1.1rem;
   padding: 0.2rem 0.45rem;
   border: 2px solid var(--ink);
+  background: #fff7e2;
+  width: fit-content;
+}
+
+.brandMeta {
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .actions {
@@ -67,7 +88,7 @@ button {
   border: 2px solid var(--ink);
   background: var(--accent);
   color: #fff;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'Menlo', 'Consolas', monospace;
   font-size: 0.9rem;
   height: var(--control-h);
   padding: 0 0.7rem;
@@ -107,7 +128,7 @@ button.ghost {
   padding: 0.5rem;
   border: 2px solid var(--ink);
   background: #f9f6ee;
-  box-shadow: 6px 6px 0 #14141220;
+  box-shadow: 6px 6px 0 rgba(20, 20, 18, 0.12);
   z-index: 12;
 }
 
@@ -120,9 +141,20 @@ button.ghost {
   text-align: left;
 }
 
+.statusStack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.35rem;
+}
+
 .status {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'Menlo', 'Consolas', monospace;
   font-size: 0.8rem;
+}
+
+.quickSetupBtn {
+  min-width: 9rem;
 }
 
 .workspace {
@@ -168,7 +200,7 @@ button.ghost {
 }
 
 .paneHeader {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'Menlo', 'Consolas', monospace;
   font-size: 0.86rem;
   padding: 0.45rem 0.7rem;
   border-bottom: 2px solid var(--ink);
@@ -190,7 +222,7 @@ button.ghost {
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'Menlo', 'Consolas', monospace;
   font-size: 0.78rem;
   letter-spacing: 0.03em;
   text-transform: uppercase;
@@ -206,7 +238,7 @@ button.ghost {
   border: 2px solid var(--ink);
   background: #f8f5ee;
   color: var(--ink);
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'Menlo', 'Consolas', monospace;
   font-size: 0.82rem;
   height: var(--control-h);
   padding: 0 0.65rem;
@@ -263,7 +295,7 @@ button.ghost {
   border: 2px solid var(--ink);
   background: #fff6df;
   padding: 0.2rem 0.45rem;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'Menlo', 'Consolas', monospace;
   font-size: 0.76rem;
   cursor: pointer;
   white-space: nowrap;
@@ -312,7 +344,8 @@ button.ghost {
 }
 
 .previewView,
-.helpView {
+.helpView,
+.setupView {
   flex: 1;
   min-height: 0;
 }
@@ -327,9 +360,17 @@ button.ghost {
   background: #fffdf8;
 }
 
+.setupView {
+  overflow: auto;
+  padding: 1rem;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.45), transparent 35%),
+    #fff8ef;
+}
+
 .helpView h3 {
   margin: 0.2rem 0 0.45rem;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'Menlo', 'Consolas', monospace;
   font-size: 0.88rem;
 }
 
@@ -359,7 +400,7 @@ button.ghost {
   border: 2px solid #f7f1e4;
   background: rgba(20, 20, 18, 0.82);
   color: #fff7e8;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'Menlo', 'Consolas', monospace;
   font-size: 0.75rem;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -377,7 +418,7 @@ button.ghost {
   flex: 1;
   min-height: 0;
   background: #f7f4ec;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'Menlo', 'Consolas', monospace;
   font-size: 12px;
   white-space: pre-wrap;
   overflow-y: auto;
@@ -416,7 +457,7 @@ button.ghost {
 .helpCard h2,
 .helpCard h3 {
   margin: 0.3rem 0 0.4rem;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'Menlo', 'Consolas', monospace;
 }
 
 .helpCard ul {
@@ -427,6 +468,149 @@ button.ghost {
 .helpCard li {
   margin-bottom: 0.35rem;
   font-size: 0.92rem;
+}
+
+.eyebrow {
+  margin: 0 0 0.35rem;
+  font-family: 'Menlo', 'Consolas', monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #635944;
+}
+
+.setupHero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1rem;
+  padding: 1.1rem 1.15rem;
+  border: 2px solid var(--ink);
+  background:
+    radial-gradient(circle at top right, rgba(243, 215, 138, 0.6), transparent 30%),
+    linear-gradient(135deg, #fff4db, #f5f0e5);
+  box-shadow: 10px 10px 0 rgba(18, 17, 13, 0.08);
+}
+
+.setupHero h2 {
+  margin: 0;
+  font-size: clamp(1.5rem, 2vw, 2.1rem);
+  line-height: 1.02;
+}
+
+.setupSummary {
+  margin: 0.65rem 0 0;
+  max-width: 48rem;
+  font-size: 1rem;
+}
+
+.setupHeroActions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  align-self: center;
+}
+
+.runtimeStatusCard {
+  margin-top: 1rem;
+  padding: 1rem 1.1rem;
+  border: 2px solid var(--ink);
+  background: #fffdf7;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 1rem;
+  align-items: start;
+}
+
+.runtimeBadge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.35rem;
+  padding: 0.25rem 0.7rem;
+  border: 2px solid var(--ink);
+  font-family: 'Menlo', 'Consolas', monospace;
+  font-weight: 700;
+}
+
+.runtimeBadge-ready {
+  background: var(--mint);
+}
+
+.runtimeBadge-pending {
+  background: #f9dfc8;
+}
+
+.runtimeFacts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.runtimeFacts strong {
+  display: block;
+  font-size: 0.98rem;
+  word-break: break-word;
+}
+
+.factLabel {
+  display: block;
+  margin-bottom: 0.2rem;
+  font-family: 'Menlo', 'Consolas', monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #6d624d;
+}
+
+.setupLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 1rem;
+}
+
+.linkButton {
+  background: #f7f2e7;
+}
+
+.linkButton:disabled {
+  opacity: 0.55;
+  cursor: default;
+  transform: none;
+}
+
+.setupGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.9rem;
+  margin-top: 1rem;
+}
+
+.guideCard {
+  padding: 1rem;
+  border: 2px solid var(--ink);
+  background: #fffdf7;
+  transition: transform 140ms ease, box-shadow 140ms ease, background 140ms ease;
+}
+
+.guideCard.active {
+  transform: translate(-2px, -2px);
+  box-shadow: 8px 8px 0 rgba(18, 17, 13, 0.12);
+  background: linear-gradient(180deg, #fff2dc, #fffdf7);
+}
+
+.guideCard h3 {
+  margin: 0 0 0.7rem;
+  font-size: 1.1rem;
+}
+
+.guideCard ol {
+  margin: 0;
+  padding-left: 1.2rem;
+}
+
+.guideCard li {
+  margin-bottom: 0.55rem;
+  line-height: 1.35;
 }
 
 @media (max-width: 1220px) {
@@ -443,7 +627,7 @@ button.ghost {
     gap: 0.45rem 0.75rem;
   }
 
-  .brand {
+  .brandWrap {
     grid-area: brand;
   }
 
@@ -451,10 +635,10 @@ button.ghost {
     grid-area: actions;
   }
 
-  .status {
+  .statusStack {
     grid-area: status;
     justify-self: end;
-    align-self: center;
+    align-items: flex-end;
   }
 
   .workspace {
@@ -490,5 +674,16 @@ button.ghost {
   .tabBar {
     align-items: center;
     flex-direction: row;
+  }
+
+  .setupHero,
+  .runtimeStatusCard,
+  .setupGrid,
+  .runtimeFacts {
+    grid-template-columns: 1fr;
+  }
+
+  .setupHeroActions {
+    width: 100%;
   }
 }

@@ -1,19 +1,116 @@
 {
   "name": "p5q-editor",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
-  "description": "Lightweight p5.js-style editor for kdb+/q sketches",
-  "main": "server.js",
+  "author": "zak1726",
+  "description": "Desktop-first p5.js-style editor for kdb+/q sketches",
+  "main": "electron/main.js",
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:zaxiom13/p5q.git"
+  },
   "scripts": {
-    "start": "node server.js",
+    "start": "electron .",
+    "start:web": "node server.js",
     "test": "node --test --test-concurrency=1 --test-timeout=30000 --test-force-exit",
     "demo:record": "playwright test demo/record-demo.spec.js",
-    "demo:record:headed": "playwright test demo/record-demo.spec.js --headed"
+    "demo:record:headed": "playwright test demo/record-demo.spec.js --headed",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder"
   },
   "dependencies": {
+    "electron-updater": "^6.6.2",
+    "monaco-editor": "^0.52.2",
+    "p5": "^1.11.10",
     "ws": "^8.18.0"
   },
   "devDependencies": {
-    "@playwright/test": "^1.58.2"
+    "@playwright/test": "^1.58.2",
+    "electron": "^37.2.0",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "com.p5q.studio",
+    "productName": "p5q Studio",
+    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "zaxiom13",
+        "repo": "p5q"
+      }
+    ],
+    "files": [
+      "electron/**/*",
+      "public/**/*",
+      "server.js",
+      "package.json",
+      "node_modules/**/*"
+    ],
+    "directories": {
+      "buildResources": "assets"
+    },
+    "releaseInfo": {
+      "releaseName": "p5q Studio ${version}",
+      "releaseNotes": "Desktop release with installers, auto-update metadata, and platform packages."
+    },
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "icon": "assets/icon.png",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "notarize": true,
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "universal"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "universal"
+          ]
+        }
+      ]
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "tar.gz",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "icon": "assets/icon.png"
+    },
+    "win": {
+      "verifyUpdateCodeSignature": true,
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "assets/icon.png"
+    }
   }
 }

@@ -3,17 +3,17 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>p5q Editor</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;700&family=Sora:wght@400;600;700&display=swap" rel="stylesheet" />
+    <title>p5q Studio</title>
     <link rel="stylesheet" href="/styles.css" />
-    <script src="https://cdn.jsdelivr.net/npm/p5@1.9.3/lib/p5.min.js"></script>
+    <script src="/vendor/p5/lib/p5.min.js"></script>
   </head>
   <body>
     <div class="app">
       <header class="topbar">
-        <div class="brand">p5q</div>
+        <div class="brandWrap">
+          <div class="brand">p5q Studio</div>
+          <div class="brandMeta">desktop sketching for q</div>
+        </div>
         <div class="actions">
           <button id="runBtn">Run</button>
           <button id="stopBtn" class="ghost">Stop</button>
@@ -31,7 +31,10 @@
             </div>
           </div>
         </div>
-        <div id="status" class="status">Connecting…</div>
+        <div class="statusStack">
+          <div id="status" class="status">Connecting…</div>
+          <button id="runtimeQuickBtn" class="ghost quickSetupBtn" type="button">Runtime Setup</button>
+        </div>
       </header>
 
       <main class="workspace">
@@ -53,7 +56,8 @@
           <div class="paneHeader previewTabs">
             <button id="previewTabBtn" class="tabBtn active" type="button">Preview</button>
             <button id="helpTabBtn" class="tabBtn" type="button">Help</button>
-            <label class="previewToggle" for="fpsToggle">
+            <button id="setupTabBtn" class="tabBtn" type="button">Setup</button>
+            <label id="previewToggleWrap" class="previewToggle" for="fpsToggle">
               <input id="fpsToggle" type="checkbox" checked />
               <span>FPS</span>
             </label>
@@ -80,10 +84,92 @@
               <ul id="inputDocumentFields"></ul>
             </section>
           </div>
+          <div id="setupView" class="setupView" hidden>
+            <section class="setupHero">
+              <div>
+                <p class="eyebrow">No command line required</p>
+                <h2>Connect KDB-X once, then just press Run.</h2>
+                <p id="runtimeSummary" class="setupSummary">Checking your local q runtime…</p>
+              </div>
+              <div class="setupHeroActions">
+                <button id="runtimeAutoBtn" type="button">Auto Detect q</button>
+                <button id="runtimePickBtn" class="ghost" type="button">Choose q Executable</button>
+                <button id="runtimeClearBtn" class="ghost" type="button">Reset Runtime</button>
+              </div>
+            </section>
+
+            <section class="runtimeStatusCard">
+              <div>
+                <p class="eyebrow">Integration Status</p>
+                <div id="runtimeBadge" class="runtimeBadge runtimeBadge-pending">Checking…</div>
+              </div>
+              <div class="runtimeFacts">
+                <div>
+                  <span class="factLabel">Platform</span>
+                  <strong id="runtimePlatform">Desktop</strong>
+                </div>
+                <div>
+                  <span class="factLabel">Connected q</span>
+                  <strong id="runtimePath">Not linked yet</strong>
+                </div>
+                <div>
+                  <span class="factLabel">Detection</span>
+                  <strong id="runtimeSource">Waiting</strong>
+                </div>
+              </div>
+            </section>
+
+            <section class="runtimeStatusCard updateCard">
+              <div>
+                <p class="eyebrow">App Updates</p>
+                <div id="updateBadge" class="runtimeBadge runtimeBadge-pending">Idle</div>
+              </div>
+              <div class="runtimeFacts">
+                <div>
+                  <span class="factLabel">Current</span>
+                  <strong id="updateVersion">-</strong>
+                </div>
+                <div>
+                  <span class="factLabel">Available</span>
+                  <strong id="updateAvailable">-</strong>
+                </div>
+                <div>
+                  <span class="factLabel">Status</span>
+                  <strong id="updateMessage">Updates have not been checked yet.</strong>
+                </div>
+              </div>
+            </section>
+
+            <section class="setupLinks">
+              <button id="openProductBtn" class="ghost linkButton" type="button">What is KDB-X?</button>
+              <button id="openDownloadBtn" class="ghost linkButton" type="button">Open KX Downloads</button>
+              <button id="openDocsBtn" class="ghost linkButton" type="button">Open KX Docs</button>
+              <button id="checkUpdatesBtn" class="ghost linkButton" type="button">Check for Updates</button>
+              <button id="installUpdateBtn" class="ghost linkButton" type="button">Install Downloaded Update</button>
+            </section>
+
+            <section class="setupGrid">
+              <article class="guideCard" data-guide-card="macos">
+                <p class="eyebrow">macOS</p>
+                <h3>Native q setup</h3>
+                <ol id="guide-macos"></ol>
+              </article>
+              <article class="guideCard" data-guide-card="linux">
+                <p class="eyebrow">Linux</p>
+                <h3>Native q setup</h3>
+                <ol id="guide-linux"></ol>
+              </article>
+              <article class="guideCard" data-guide-card="windows">
+                <p class="eyebrow">Windows</p>
+                <h3>WSL-backed q setup</h3>
+                <ol id="guide-windows"></ol>
+              </article>
+            </section>
+          </div>
         </section>
       </main>
     </div>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.2/min/vs/loader.min.js"></script>
+    <script src="/vendor/monaco-editor/min/vs/loader.js"></script>
     <script src="/qSyntax.js"></script>
     <script src="/runGate.js"></script>
     <script src="/app.js"></script>

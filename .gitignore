@@ -5,6 +5,7 @@ node_modules/
 .tmp/
 tmp/
 *.tmp
+dist/
 
 # Logs
 *.log
@@ -33,3 +34,6 @@ Thumbs.db
 *.swo
 .lsp/
 .clj-kondo/
+
+# Generated desktop build assets
+build/

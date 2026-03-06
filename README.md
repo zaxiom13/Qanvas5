@@ -1,10 +1,11 @@
-# p5q
+# p5q Studio
 
-A lightweight p5.js-style editor where sketches are written in kdb+/q and rendered in the browser via p5.js commands.
+A desktop-first p5.js-style editor where sketches are written in kdb+/q and rendered locally through p5.js commands.
 
 ## Current Features
 
-- Browser editor + preview canvas + output console.
+- Electron desktop shell with no visible terminal window.
+- In-app KDB-X setup assistant with platform guides and runtime auto-detection.
 - Pooled q workers over websocket with per-session runtime isolation.
 - `setup[document]` / `draw[state;input;document]` sketch contract.
 - Multi-tab workspace:
@@ -63,14 +64,80 @@ Helper tabs:
 
 ## Run
 
-Prereqs: `node`, `npm`, and local `q` binary on PATH.
+Desktop app:
 
 ```bash
 npm install
 npm start
 ```
 
-Open: [http://localhost:5173](http://localhost:5173)
+Browser-only dev server:
+
+```bash
+npm run start:web
+```
+
+The desktop app embeds the local server and exposes a Setup tab that helps users:
+
+- open the current KDB-X product/download/docs pages,
+- auto-detect a local `q` binary on macOS/Linux,
+- use WSL-backed `q` on Windows,
+- save the linked runtime so future launches are ready without terminal setup.
+
+## Package Desktop Builds
+
+```bash
+npm run dist
+```
+
+## GitHub Releases
+
+This repo now supports automated GitHub Releases for desktop downloads.
+
+1. Push a version tag such as `v0.2.0`
+2. GitHub Actions builds release assets for:
+   - macOS universal (`dmg`, `zip`)
+   - Windows x64 (`nsis`, `portable`)
+   - Linux x64 and arm64 (`AppImage`, `tar.gz`)
+3. The workflow uploads them to the repo's Releases page
+
+Workflow file:
+
+- [.github/workflows/release.yml](./.github/workflows/release.yml)
+- [CHANGELOG.md](./CHANGELOG.md)
+
+Important notes:
+
+- macOS and Windows builds are unsigned by default, so users may still see OS trust warnings until you add code signing.
+- GitHub Releases is the right place for installers and binaries. GitHub Pages is for websites/docs.
+
+### Signing And Notarization Secrets
+
+To enable trusted installs in GitHub Actions, add these repository secrets:
+
+- `APPLE_ID`
+- `APPLE_APP_SPECIFIC_PASSWORD`
+- `APPLE_TEAM_ID`
+- `CSC_LINK`
+- `CSC_KEY_PASSWORD`
+
+The workflow passes them to Electron Builder so:
+
+- macOS builds can be signed and notarized
+- Windows builds can be code signed
+
+### Auto-Updates
+
+The packaged desktop app now checks GitHub Releases for updates and can install a downloaded update from the Setup tab.
+
+### Release Notes Templating
+
+Release notes are now rendered from:
+
+- [`CHANGELOG.md`](./CHANGELOG.md)
+- [`scripts/render-release-notes.js`](./scripts/render-release-notes.js)
+
+The GitHub Release workflow uses the matching changelog section for the pushed tag, so `v0.2.0` maps to `## [0.2.0]`.
 
 Runtime pool sizing:
 

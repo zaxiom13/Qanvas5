@@ -8,10 +8,18 @@ const { WebSocketServer } = require('ws');
 
 const ROOT = __dirname;
 const PUBLIC_DIR = path.join(ROOT, 'public');
-const TMP_DIR = path.join(ROOT, 'tmp');
+const VENDOR_DIR = path.join(ROOT, 'node_modules');
 const PORT = Number(process.env.PORT || 5173);
 const EMPTY_SETUP_ERROR = 'setup not loaded';
 const EMPTY_DRAW_ERROR = 'draw not loaded';
+
+function getTmpDir() {
+  return path.resolve(process.env.P5Q_TMP_DIR || path.join(ROOT, 'tmp'));
+}
+
+function getRuntimeCwd() {
+  return path.resolve(process.env.P5Q_RUNTIME_CWD || getTmpDir());
+}
 
 function envInt(name, fallback) {
   const raw = Number(process.env[name]);
@@ -56,10 +64,11 @@ function toQLoadPath(filePath, qSpawn) {
 }
 
 async function pruneTmpDir() {
+  const tmpDir = getTmpDir();
   const now = Date.now();
   let entries;
   try {
-    entries = await fsp.readdir(TMP_DIR, { withFileTypes: true });
+    entries = await fsp.readdir(tmpDir, { withFileTypes: true });
   } catch {
     return;
   }
@@ -68,7 +77,7 @@ async function pruneTmpDir() {
     entries
       .filter((entry) => entry.isFile() && /^sketch-.*\.q$/i.test(entry.name))
       .map(async (entry) => {
-        const fullPath = path.join(TMP_DIR, entry.name);
+        const fullPath = path.join(tmpDir, entry.name);
         try {
           const stat = await fsp.stat(fullPath);
           if (now - stat.mtimeMs > TMP_FILE_MAX_AGE_MS) {
@@ -164,7 +173,10 @@ const MIME = {
   '.js': 'application/javascript; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
   '.ico': 'image/x-icon',
-  '.svg': 'image/svg+xml; charset=utf-8'
+  '.svg': 'image/svg+xml; charset=utf-8',
+  '.ttf': 'font/ttf',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2'
 };
 
 function sendJson(ws, payload) {
@@ -424,8 +436,9 @@ async function captureQParserDiagnostics(code) {
 
   const qSpawn = getQSpawnSpec();
   const proc = spawn(qSpawn.command, qSpawn.args, {
-    cwd: ROOT,
-    stdio: ['pipe', 'pipe', 'pipe']
+    cwd: getRuntimeCwd(),
+    stdio: ['pipe', 'pipe', 'pipe'],
+    windowsHide: true
   });
 
   proc.stdout.setEncoding('utf8');
@@ -794,12 +807,14 @@ class QWorker {
   }
 
   async start() {
-    await fsp.mkdir(TMP_DIR, { recursive: true });
+    const tmpDir = getTmpDir();
+    await fsp.mkdir(tmpDir, { recursive: true });
     await pruneTmpDir();
     this.qSpawn = getQSpawnSpec();
     const proc = spawn(this.qSpawn.command, this.qSpawn.args, {
-      cwd: ROOT,
-      stdio: ['pipe', 'pipe', 'pipe']
+      cwd: getRuntimeCwd(),
+      stdio: ['pipe', 'pipe', 'pipe'],
+      windowsHide: true
     });
     this.proc = proc;
 
@@ -884,7 +899,7 @@ class QWorker {
       await this.ensureFreshProcess();
 
       const sketchId = crypto.randomBytes(8).toString('hex');
-      const sketchPath = path.join(TMP_DIR, `sketch-${sketchId}.q`);
+      const sketchPath = path.join(getTmpDir(), `sketch-${sketchId}.q`);
       const rewritten = preprocessSketchCode(code);
       const runNamespace = `.p5run${sketchId}`;
       const sessionExpr = qSymbol(sessionId);
@@ -1004,13 +1019,20 @@ class QWorkerPool {
       return best;
     }, null);
   }
+
+  async close() {
+    await Promise.all(this.workers.map((worker) => worker.close().catch(() => {})));
+  }
 }
 
 function serveStatic(req, res) {
-  const cleanPath = req.url === '/' ? '/index.html' : req.url;
-  const filePath = path.join(PUBLIC_DIR, cleanPath);
+  const requestPath = (req.url || '/').split('?')[0];
+  const cleanPath = requestPath === '/' ? '/index.html' : requestPath;
+  const baseDir = cleanPath.startsWith('/vendor/') ? VENDOR_DIR : PUBLIC_DIR;
+  const relativePath = cleanPath.startsWith('/vendor/') ? cleanPath.replace(/^\/vendor/, '') : cleanPath;
+  const filePath = path.join(baseDir, relativePath);
 
-  if (!filePath.startsWith(PUBLIC_DIR)) {
+  if (!filePath.startsWith(baseDir)) {
     res.writeHead(403);
     res.end('Forbidden');
     return;
@@ -1029,86 +1051,122 @@ function serveStatic(req, res) {
   });
 }
 
-const server = http.createServer(serveStatic);
-const wss = new WebSocketServer({ server, path: '/ws' });
-const workerPool = new QWorkerPool(Q_WORKER_POOL_SIZE);
+function startServer(options = {}) {
+  const port = Number(options.port || process.env.PORT || PORT);
+  const server = http.createServer(serveStatic);
+  const wss = new WebSocketServer({ server, path: '/ws' });
+  const workerPool = new QWorkerPool(Q_WORKER_POOL_SIZE);
 
-wss.on('connection', async (ws) => {
-  const sessionId = crypto.randomBytes(12).toString('hex');
-  const worker = workerPool.pickWorker();
-  let running = false;
-  let activeCode = '';
-  let messageQueue = Promise.resolve();
-  worker.attachSession(sessionId, (line) => {
-    sendJson(ws, { type: 'stdout', line });
-  });
+  wss.on('connection', async (ws) => {
+    const sessionId = crypto.randomBytes(12).toString('hex');
+    const worker = workerPool.pickWorker();
+    let running = false;
+    let activeCode = '';
+    let messageQueue = Promise.resolve();
+    worker.attachSession(sessionId, (line) => {
+      sendJson(ws, { type: 'stdout', line });
+    });
 
-  ws.on('message', (raw) => {
-    messageQueue = messageQueue
-      .then(async () => {
-        let msg;
-        let phase = null;
-        let phaseCode = activeCode;
-        try {
-          msg = JSON.parse(raw.toString('utf8'));
-        } catch {
-          return;
-        }
-
-        try {
-      if (msg.type === 'run') {
-        running = false;
-        const mergedCode = combineRunCode(msg.code || '', msg.files || []);
-        phaseCode = mergedCode;
-        await worker.resetAndLoad(sessionId, mergedCode);
-        const docTableExpr = qDocumentTableLiteral(msg.document);
-        phase = 'setup';
-        const setupResult = await worker.runSetup(sessionId, docTableExpr);
-        const setupError = toRuntimeError(setupResult);
-        if (setupError) {
-          throw new Error(formatPhaseRuntimeError('setup', setupError.message, mergedCode));
-        }
-        const setupCommands = normalizeCommands(setupResult);
-        activeCode = mergedCode;
-        running = true;
-        sendJson(ws, { type: 'runResult', ok: true, setup: setupCommands });
-      }
-
-      if (msg.type === 'step' && running) {
-        const frame = Number(msg.frame || 0);
-        const inputTableExpr = qInputTableLiteral(msg.input, frame);
-        const docTableExpr = qDocumentTableLiteral(msg.document);
-        phase = 'draw';
-        const stepResult = await worker.runDraw(sessionId, inputTableExpr, docTableExpr);
-        const stepError = toRuntimeError(stepResult);
-        if (stepError) {
-          throw new Error(formatPhaseRuntimeError('draw', stepError.message, activeCode));
-        }
-        const commands = normalizeCommands(stepResult);
-        sendJson(ws, { type: 'stepResult', frame, commands });
-      }
-
-          if (msg.type === 'stop') {
-            running = false;
-            sendJson(ws, { type: 'stopped' });
+    ws.on('message', (raw) => {
+      messageQueue = messageQueue
+        .then(async () => {
+          let msg;
+          let phase = null;
+          let phaseCode = activeCode;
+          try {
+            msg = JSON.parse(raw.toString('utf8'));
+          } catch {
+            return;
           }
-        } catch (err) {
-          const message =
-            phase && !String(err?.message || '').includes(`Runtime error in ${phase}:`)
-              ? formatPhaseRuntimeError(phase, err?.message, phaseCode)
-              : String(err?.message || 'q runtime error');
-          sendJson(ws, { type: 'runtimeError', message });
+
+          try {
+            if (msg.type === 'run') {
+              running = false;
+              const mergedCode = combineRunCode(msg.code || '', msg.files || []);
+              phaseCode = mergedCode;
+              await worker.resetAndLoad(sessionId, mergedCode);
+              const docTableExpr = qDocumentTableLiteral(msg.document);
+              phase = 'setup';
+              const setupResult = await worker.runSetup(sessionId, docTableExpr);
+              const setupError = toRuntimeError(setupResult);
+              if (setupError) {
+                throw new Error(formatPhaseRuntimeError('setup', setupError.message, mergedCode));
+              }
+              const setupCommands = normalizeCommands(setupResult);
+              activeCode = mergedCode;
+              running = true;
+              sendJson(ws, { type: 'runResult', ok: true, setup: setupCommands });
+            }
+
+            if (msg.type === 'step' && running) {
+              const frame = Number(msg.frame || 0);
+              const inputTableExpr = qInputTableLiteral(msg.input, frame);
+              const docTableExpr = qDocumentTableLiteral(msg.document);
+              phase = 'draw';
+              const stepResult = await worker.runDraw(sessionId, inputTableExpr, docTableExpr);
+              const stepError = toRuntimeError(stepResult);
+              if (stepError) {
+                throw new Error(formatPhaseRuntimeError('draw', stepError.message, activeCode));
+              }
+              const commands = normalizeCommands(stepResult);
+              sendJson(ws, { type: 'stepResult', frame, commands });
+            }
+
+            if (msg.type === 'stop') {
+              running = false;
+              sendJson(ws, { type: 'stopped' });
+            }
+          } catch (err) {
+            const message =
+              phase && !String(err?.message || '').includes(`Runtime error in ${phase}:`)
+                ? formatPhaseRuntimeError(phase, err?.message, phaseCode)
+                : String(err?.message || 'q runtime error');
+            sendJson(ws, { type: 'runtimeError', message });
+          }
+        })
+        .catch(() => {});
+    });
+
+    ws.on('close', async () => {
+      running = false;
+      await worker.detachSession(sessionId);
+    });
+  });
+
+  const listening = new Promise((resolve) => {
+    server.listen(port, () => {
+      const address = server.address();
+      const actualPort = address && typeof address === 'object' ? address.port : port;
+      resolve(actualPort);
+    });
+  });
+
+  return {
+    server,
+    wss,
+    workerPool,
+    listening,
+    async close() {
+      await new Promise((resolve) => {
+        wss.close(() => resolve());
+        for (const client of wss.clients) {
+          client.terminate();
         }
-      })
-      .catch(() => {});
-  });
+      }).catch(() => {});
 
-  ws.on('close', async () => {
-    running = false;
-    await worker.detachSession(sessionId);
-  });
-});
+      await new Promise((resolve) => server.close(() => resolve())).catch(() => {});
+      await workerPool.close();
+    }
+  };
+}
 
-server.listen(PORT, () => {
-  console.log(`p5q editor listening on http://localhost:${PORT}`);
-});
+if (require.main === module) {
+  const controller = startServer();
+  controller.listening.then((port) => {
+    console.log(`p5q editor listening on http://localhost:${port}`);
+  });
+}
+
+module.exports = {
+  startServer
+};
