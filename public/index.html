@@ -53,9 +53,14 @@
           <div class="paneHeader previewTabs">
             <button id="previewTabBtn" class="tabBtn active" type="button">Preview</button>
             <button id="helpTabBtn" class="tabBtn" type="button">Help</button>
+            <label class="previewToggle" for="fpsToggle">
+              <input id="fpsToggle" type="checkbox" checked />
+              <span>FPS</span>
+            </label>
           </div>
           <div id="previewView" class="previewView">
             <div id="canvasHost"></div>
+            <div id="fpsOverlay" class="fpsOverlay" aria-live="off">FPS --</div>
           </div>
           <div id="helpView" class="helpView" hidden>
             <section>

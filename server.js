@@ -202,8 +202,55 @@ function qFloatPair(value, fallbackA = 0, fallbackB = 0) {
   return `(${qFloat(pair[0], fallbackA)};${qFloat(pair[1], fallbackB)})`;
 }
 
+function normalizeWireInput(raw, frame = 0) {
+  if (Array.isArray(raw)) {
+    const keys = Array.isArray(raw[6]) ? raw[6] : [];
+    return {
+      mx: raw[0],
+      my: raw[1],
+      pmx: raw[2],
+      pmy: raw[3],
+      mousePressed: raw[4],
+      mouseButton: raw[5],
+      keysDown: keys,
+      key: raw[7],
+      keyCode: raw[8],
+      keyPressed: raw[9],
+      keyReleased: raw[10],
+      wheelDelta: raw[11],
+      ts: raw[12],
+      tick: frame
+    };
+  }
+
+  return raw && typeof raw === 'object' ? raw : {};
+}
+
+function normalizeWireDocument(raw) {
+  if (Array.isArray(raw)) {
+    return {
+      c: [raw[0], raw[1]],
+      v: [raw[2], raw[3]],
+      d: [raw[4], raw[5]],
+      s: [raw[6], raw[7]],
+      cw: raw[0],
+      ch: raw[1],
+      vw: raw[2],
+      vh: raw[3],
+      dw: raw[4],
+      dh: raw[5],
+      sx: raw[6],
+      sy: raw[7],
+      dpr: raw[8],
+      ts: raw[9]
+    };
+  }
+
+  return raw && typeof raw === 'object' ? raw : {};
+}
+
 function qInputTableLiteral(raw, frame = 0) {
-  const input = raw && typeof raw === 'object' ? raw : {};
+  const input = normalizeWireInput(raw, frame);
   const keys = Array.isArray(input.keysDown) ? input.keysDown : [];
   const keysExpr = keys.length ? `(${keys.map((k) => qSymbol(k)).join(';')})` : '()';
   const m = Array.isArray(input.m) ? input.m : [input.mx, input.my];
@@ -236,7 +283,7 @@ function qInputTableLiteral(raw, frame = 0) {
 }
 
 function qDocumentTableLiteral(raw) {
-  const doc = raw && typeof raw === 'object' ? raw : {};
+  const doc = normalizeWireDocument(raw);
   const c = Array.isArray(doc.c) ? doc.c : [doc.cw, doc.ch];
   const v = Array.isArray(doc.v) ? doc.v : [doc.vw, doc.vh];
   const d = Array.isArray(doc.d) ? doc.d : [doc.dw, doc.dh];

@@ -17,6 +17,8 @@ const previewTabBtn = document.getElementById('previewTabBtn');
 const helpTabBtn = document.getElementById('helpTabBtn');
 const previewView = document.getElementById('previewView');
 const helpView = document.getElementById('helpView');
+const fpsToggleEl = document.getElementById('fpsToggle');
+const fpsOverlayEl = document.getElementById('fpsOverlay');
 const setupDrawGuideEl = document.getElementById('setupDrawGuide');
 const apiGlossaryEl = document.getElementById('apiGlossary');
 const primitiveColumnsEl = document.getElementById('primitiveColumns');
@@ -24,6 +26,7 @@ const inputDocumentFieldsEl = document.getElementById('inputDocumentFields');
 
 const STORAGE_KEY = 'p5q:workspace:v1';
 const LEGACY_SKETCH_KEY = 'p5q:lastSketch:v3';
+const FPS_TOGGLE_KEY = 'p5q:showFps:v1';
 
 const DEFAULT_SKETCH = `// q sketch contract (function-style API):
 // - setup[document] initializes and returns state table
@@ -340,6 +343,37 @@ let awaitingFrame = false;
 let activeCommands = [];
 let setupApplied = false;
 let canvasEl = null;
+let showFpsOverlay = loadFpsPreference();
+let fpsDisplayValue = 0;
+let fpsSampleCount = 0;
+let fpsLastPaintAt = 0;
+const INPUT_WIRE_FIELDS = Object.freeze({
+  mx: 0,
+  my: 1,
+  pmx: 2,
+  pmy: 3,
+  mousePressed: 4,
+  mouseButton: 5,
+  keysDown: 6,
+  key: 7,
+  keyCode: 8,
+  keyPressed: 9,
+  keyReleased: 10,
+  wheelDelta: 11,
+  ts: 12
+});
+const DOCUMENT_WIRE_FIELDS = Object.freeze({
+  cw: 0,
+  ch: 1,
+  vw: 2,
+  vh: 3,
+  dw: 4,
+  dh: 5,
+  sx: 6,
+  sy: 7,
+  dpr: 8,
+  ts: 9
+});
 const runGate = createRunGate((payload) => send({ type: 'run', ...payload }));
 const keysDown = new Set();
 const inputState = {
@@ -361,6 +395,48 @@ let workspace = loadWorkspace();
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
+}
+
+function loadFpsPreference() {
+  const saved = localStorage.getItem(FPS_TOGGLE_KEY);
+  return saved == null ? true : saved === 'true';
+}
+
+function syncFpsOverlay() {
+  if (!fpsOverlayEl) {
+    return;
+  }
+  fpsOverlayEl.hidden = !showFpsOverlay;
+}
+
+function setFpsOverlayEnabled(nextValue) {
+  showFpsOverlay = Boolean(nextValue);
+  if (fpsToggleEl) {
+    fpsToggleEl.checked = showFpsOverlay;
+  }
+  localStorage.setItem(FPS_TOGGLE_KEY, showFpsOverlay ? 'true' : 'false');
+  syncFpsOverlay();
+}
+
+function paintFps(reading) {
+  if (!fpsOverlayEl || !showFpsOverlay) {
+    return;
+  }
+  fpsOverlayEl.textContent = `FPS ${Math.round(reading)}`;
+}
+
+function updateFpsOverlay(sketch) {
+  const now = performance.now();
+  const measured = Number(sketch.frameRate()) || 0;
+  if (measured > 0) {
+    fpsSampleCount += 1;
+    fpsDisplayValue += (measured - fpsDisplayValue) / Math.min(fpsSampleCount, 12);
+  }
+  if (now - fpsLastPaintAt < 250) {
+    return;
+  }
+  fpsLastPaintAt = now;
+  paintFps(fpsDisplayValue || measured || 0);
 }
 
 function createDefaultWorkspace() {
@@ -518,7 +594,7 @@ function buildRunPayload() {
   persistActiveTabCode();
   const main = mainTab();
   const files = helperTabs().map((t) => ({ name: t.name, code: t.code }));
-  return { code: main.code, files, document: getDocumentSnapshot() };
+  return { code: main.code, files, document: getDocumentWireSnapshot() };
 }
 
 function loadExample(exampleId) {
@@ -906,32 +982,30 @@ function isCanvasEvent(event) {
   return clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom;
 }
 
-function getInputSnapshot() {
+function getInputWireSnapshot() {
   inputState.ts = Date.now();
   const mx = Number(inputState.mx) || 0;
   const my = Number(inputState.my) || 0;
   const pmx = Number(inputState.pmx) || 0;
   const pmy = Number(inputState.pmy) || 0;
-  return {
-    m: [mx, my],
-    pm: [pmx, pmy],
-    mx,
-    my,
-    pmx,
-    pmy,
-    mousePressed: Boolean(inputState.mousePressed),
-    mouseButton: inputState.mouseButton || 'none',
-    keysDown: Array.from(keysDown),
-    key: inputState.key || '',
-    keyCode: Number(inputState.keyCode) || 0,
-    keyPressed: Boolean(inputState.keyPressed),
-    keyReleased: Boolean(inputState.keyReleased),
-    wheelDelta: Number(inputState.wheelDelta) || 0,
-    ts: Number(inputState.ts) || Date.now()
-  };
+  const payload = [];
+  payload[INPUT_WIRE_FIELDS.mx] = mx;
+  payload[INPUT_WIRE_FIELDS.my] = my;
+  payload[INPUT_WIRE_FIELDS.pmx] = pmx;
+  payload[INPUT_WIRE_FIELDS.pmy] = pmy;
+  payload[INPUT_WIRE_FIELDS.mousePressed] = Boolean(inputState.mousePressed);
+  payload[INPUT_WIRE_FIELDS.mouseButton] = inputState.mouseButton || 'none';
+  payload[INPUT_WIRE_FIELDS.keysDown] = Array.from(keysDown);
+  payload[INPUT_WIRE_FIELDS.key] = inputState.key || '';
+  payload[INPUT_WIRE_FIELDS.keyCode] = Number(inputState.keyCode) || 0;
+  payload[INPUT_WIRE_FIELDS.keyPressed] = Boolean(inputState.keyPressed);
+  payload[INPUT_WIRE_FIELDS.keyReleased] = Boolean(inputState.keyReleased);
+  payload[INPUT_WIRE_FIELDS.wheelDelta] = Number(inputState.wheelDelta) || 0;
+  payload[INPUT_WIRE_FIELDS.ts] = Number(inputState.ts) || Date.now();
+  return payload;
 }
 
-function getDocumentSnapshot() {
+function getDocumentWireSnapshot() {
   const docEl = document.documentElement;
   const body = document.body;
   const docWidth = Math.max(
@@ -955,23 +1029,18 @@ function getDocumentSnapshot() {
   const dh = Number(docHeight) || 0;
   const sx = Number(window.scrollX) || 0;
   const sy = Number(window.scrollY) || 0;
-
-  return {
-    c: [cw, ch],
-    v: [vw, vh],
-    d: [dw, dh],
-    s: [sx, sy],
-    cw,
-    ch,
-    vw,
-    vh,
-    dw,
-    dh,
-    sx,
-    sy,
-    dpr: Number(window.devicePixelRatio) || 1,
-    ts: Date.now()
-  };
+  const payload = [];
+  payload[DOCUMENT_WIRE_FIELDS.cw] = cw;
+  payload[DOCUMENT_WIRE_FIELDS.ch] = ch;
+  payload[DOCUMENT_WIRE_FIELDS.vw] = vw;
+  payload[DOCUMENT_WIRE_FIELDS.vh] = vh;
+  payload[DOCUMENT_WIRE_FIELDS.dw] = dw;
+  payload[DOCUMENT_WIRE_FIELDS.dh] = dh;
+  payload[DOCUMENT_WIRE_FIELDS.sx] = sx;
+  payload[DOCUMENT_WIRE_FIELDS.sy] = sy;
+  payload[DOCUMENT_WIRE_FIELDS.dpr] = Number(window.devicePixelRatio) || 1;
+  payload[DOCUMENT_WIRE_FIELDS.ts] = Date.now();
+  return payload;
 }
 
 function clearInputFrameEdges() {
@@ -1116,6 +1185,10 @@ document.addEventListener('keyup', (event) => {
   keysDown.delete(String(event.key || '').toLowerCase());
 });
 
+fpsToggleEl?.addEventListener('change', () => {
+  setFpsOverlayEnabled(fpsToggleEl.checked);
+});
+
 document.addEventListener(
   'wheel',
   (event) => {
@@ -1183,6 +1256,8 @@ const p = new p5((sketch) => {
     const renderer = sketch.createCanvas(640, 360);
     canvasEl = renderer.elt;
     sketch.background(230);
+    syncFpsOverlay();
+    paintFps(0);
   };
 
   sketch.draw = () => {
@@ -1209,10 +1284,11 @@ const p = new p5((sketch) => {
     }
 
     applyCommands(activeCommands);
+    updateFpsOverlay(sketch);
 
     if (sketchRunning && !awaitingFrame && ws && ws.readyState === WebSocket.OPEN) {
       awaitingFrame = true;
-      const sent = send({ type: 'step', input: getInputSnapshot(), document: getDocumentSnapshot() });
+      const sent = send({ type: 'step', input: getInputWireSnapshot(), document: getDocumentWireSnapshot() });
       if (sent) {
         clearInputFrameEdges();
       }
@@ -1228,5 +1304,6 @@ fillExamplesDropdown();
 fillHelpContent();
 renderTabs();
 initMonacoEditor();
+setFpsOverlayEnabled(showFpsOverlay);
 connect();
 log('Ready. Press Run.');
