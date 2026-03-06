@@ -34,8 +34,8 @@ const WS_PENDING_LIMIT = envInt('P5Q_WS_PENDING_LIMIT', 64);
 const TMP_FILE_MAX_AGE_MS = envInt('P5Q_TMP_FILE_MAX_AGE_MS', 60 * 60 * 1000);
 const Q_WORKER_POOL_SIZE = envInt('P5Q_WORKER_POOL_SIZE', 1);
 
-function getQSpawnSpec() {
-  const override = process.env.P5Q_Q_BIN;
+function getQSpawnSpec(overrideBinary = process.env.P5Q_Q_BIN) {
+  const override = overrideBinary;
   if (override) {
     return { command: override, args: ['-q'], viaWsl: false };
   }
@@ -46,6 +46,15 @@ function getQSpawnSpec() {
   }
 
   return { command: 'q', args: ['-q'], viaWsl: false };
+}
+
+function formatQSpawnError(error, qSpawn = getQSpawnSpec()) {
+  const detail = String(error?.message || error || '').trim();
+  const command = qSpawn?.command || 'q';
+  if (error?.code === 'ENOENT') {
+    return `Unable to launch q. The executable "${command}" was not found. Open Setup and choose your q executable, or install KDB-X first.`;
+  }
+  return detail || 'Unable to launch q.';
 }
 
 function toQLoadPath(filePath, qSpawn) {
@@ -428,23 +437,30 @@ function formatSketchLoadError({ code, loadStderr, parserStderr, missingSetup, m
   return parts.join('\n\n');
 }
 
-async function captureQParserDiagnostics(code) {
+async function captureQParserDiagnostics(code, qSpawn = getQSpawnSpec()) {
   const source = String(code || '').trim();
   if (!source) {
     return '';
   }
 
-  const qSpawn = getQSpawnSpec();
-  const proc = spawn(qSpawn.command, qSpawn.args, {
-    cwd: getRuntimeCwd(),
-    stdio: ['pipe', 'pipe', 'pipe'],
-    windowsHide: true
-  });
+  let proc;
+  try {
+    proc = spawn(qSpawn.command, qSpawn.args, {
+      cwd: getRuntimeCwd(),
+      stdio: ['pipe', 'pipe', 'pipe'],
+      windowsHide: true
+    });
+  } catch (error) {
+    return formatQSpawnError(error, qSpawn);
+  }
 
   proc.stdout.setEncoding('utf8');
   proc.stderr.setEncoding('utf8');
 
   let stderr = '';
+  proc.once('error', (error) => {
+    stderr = formatQSpawnError(error, qSpawn);
+  });
   proc.stderr.on('data', (chunk) => {
     stderr += chunk;
   });
@@ -755,8 +771,9 @@ function preprocessSketchCode(code) {
 }
 
 class QWorker {
-  constructor(id) {
+  constructor(id, getSpawnSpec = () => getQSpawnSpec()) {
     this.id = id;
+    this.getSpawnSpec = getSpawnSpec;
     this.proc = null;
     this.qSpawn = null;
     this.stdoutBuffer = '';
@@ -810,12 +827,17 @@ class QWorker {
     const tmpDir = getTmpDir();
     await fsp.mkdir(tmpDir, { recursive: true });
     await pruneTmpDir();
-    this.qSpawn = getQSpawnSpec();
-    const proc = spawn(this.qSpawn.command, this.qSpawn.args, {
-      cwd: getRuntimeCwd(),
-      stdio: ['pipe', 'pipe', 'pipe'],
-      windowsHide: true
-    });
+    this.qSpawn = this.getSpawnSpec();
+    let proc;
+    try {
+      proc = spawn(this.qSpawn.command, this.qSpawn.args, {
+        cwd: getRuntimeCwd(),
+        stdio: ['pipe', 'pipe', 'pipe'],
+        windowsHide: true
+      });
+    } catch (error) {
+      throw new Error(formatQSpawnError(error, this.qSpawn));
+    }
     this.proc = proc;
 
     proc.stdout.setEncoding('utf8');
@@ -828,6 +850,18 @@ class QWorker {
 
     proc.stderr.on('data', (chunk) => {
       this.stderrBuffer += chunk;
+    });
+
+    proc.on('error', (error) => {
+      const wrapped = new Error(formatQSpawnError(error, this.qSpawn));
+      this.poisoned = true;
+      for (const { reject } of this.pending.values()) {
+        reject(wrapped);
+      }
+      this.pending.clear();
+      if (this.proc === proc) {
+        this.proc = null;
+      }
     });
 
     proc.on('exit', () => {
@@ -926,7 +960,7 @@ class QWorker {
       const missingDraw = Array.isArray(loadState) ? Boolean(loadState[2]) : true;
       this.stderrBuffer = '';
       if (!loaded || missingSetup || missingDraw) {
-        const parserStderr = await captureQParserDiagnostics(code).catch(() => '');
+        const parserStderr = await captureQParserDiagnostics(code, this.qSpawn).catch(() => '');
         throw new Error(formatSketchLoadError({ code, loadStderr, parserStderr, missingSetup, missingDraw }));
       }
       this.runCount += 1;
@@ -1004,8 +1038,8 @@ class QWorker {
 }
 
 class QWorkerPool {
-  constructor(size) {
-    this.workers = Array.from({ length: Math.max(1, size) }, (_, i) => new QWorker(i));
+  constructor(size, getSpawnSpec = () => getQSpawnSpec()) {
+    this.workers = Array.from({ length: Math.max(1, size) }, (_, i) => new QWorker(i, getSpawnSpec));
   }
 
   pickWorker() {
@@ -1055,7 +1089,8 @@ function startServer(options = {}) {
   const port = Number(options.port || process.env.PORT || PORT);
   const server = http.createServer(serveStatic);
   const wss = new WebSocketServer({ server, path: '/ws' });
-  const workerPool = new QWorkerPool(Q_WORKER_POOL_SIZE);
+  const getSpawnSpec = () => getQSpawnSpec(options.qBinary);
+  const workerPool = new QWorkerPool(Q_WORKER_POOL_SIZE, getSpawnSpec);
 
   wss.on('connection', async (ws) => {
     const sessionId = crypto.randomBytes(12).toString('hex');

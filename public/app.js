@@ -17,6 +17,7 @@ const previewTabBtn = document.getElementById('previewTabBtn');
 const helpTabBtn = document.getElementById('helpTabBtn');
 const setupTabBtn = document.getElementById('setupTabBtn');
 const previewView = document.getElementById('previewView');
+const previewEmptyStateEl = document.getElementById('previewEmptyState');
 const helpView = document.getElementById('helpView');
 const setupView = document.getElementById('setupView');
 const previewToggleWrap = document.getElementById('previewToggleWrap');
@@ -852,6 +853,16 @@ function setStatus(text) {
   statusEl.textContent = text;
 }
 
+function setPreviewLiveState(isLive) {
+  if (!previewView) {
+    return;
+  }
+  previewView.classList.toggle('is-live', Boolean(isLive));
+  if (previewEmptyStateEl) {
+    previewEmptyStateEl.setAttribute('aria-hidden', isLive ? 'true' : 'false');
+  }
+}
+
 function getEditorCode() {
   if (monacoEditor) {
     return monacoEditor.getValue();
@@ -1077,6 +1088,7 @@ function connect() {
       activeCommands = [];
       applyCommands(msg.setup || []);
       sketchRunning = true;
+      setPreviewLiveState(true);
       runGate.resolveRun();
       log('Sketch started');
     }
@@ -1093,6 +1105,7 @@ function connect() {
     if (msg.type === 'runtimeError' || msg.type === 'serverError') {
       sketchRunning = false;
       awaitingFrame = false;
+      setPreviewLiveState(false);
       runGate.resolveRun();
       const detail = String(msg.message || '').trim();
       log(detail ? `Error:\n${detail}` : 'Error');
@@ -1101,6 +1114,7 @@ function connect() {
     if (msg.type === 'stopped') {
       sketchRunning = false;
       awaitingFrame = false;
+      setPreviewLiveState(false);
       log('Sketch stopped');
     }
   });
@@ -1217,6 +1231,7 @@ runBtn.addEventListener('click', () => {
   awaitingFrame = false;
   activeCommands = [];
   setupApplied = false;
+  setPreviewLiveState(false);
   const sentNow = runGate.requestRun(buildRunPayload());
   if (!sentNow) {
     log('Run queued');
@@ -1227,6 +1242,7 @@ stopBtn.addEventListener('click', () => {
   runGate.cancelRun();
   sketchRunning = false;
   awaitingFrame = false;
+  setPreviewLiveState(false);
   send({ type: 'stop' });
 });
 
@@ -1569,3 +1585,4 @@ desktopApi?.onUpdateState?.((state) => {
   renderUpdateState(state);
 });
 log('Ready. Press Run.');
+setPreviewLiveState(false);

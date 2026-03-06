@@ -268,6 +268,28 @@ async function detectRuntime(userDataPath, platform = process.platform) {
   };
 }
 
+async function resolveAndPersistRuntime(userDataPath, platform = process.platform) {
+  const status = await detectRuntime(userDataPath, platform);
+  const shouldPersist =
+    status.platform !== 'windows' &&
+    status.configured &&
+    typeof status.resolvedPath === 'string' &&
+    status.resolvedPath.trim().length > 0;
+
+  if (!shouldPersist) {
+    return status;
+  }
+
+  const saved = await loadRuntimeConfig(userDataPath);
+  const savedBinary = typeof saved.qBinary === 'string' ? saved.qBinary.trim() : '';
+  if (savedBinary === status.resolvedPath) {
+    return status;
+  }
+
+  await setRuntimeBinary(userDataPath, status.resolvedPath);
+  return detectRuntime(userDataPath, platform);
+}
+
 async function setRuntimeBinary(userDataPath, binaryPath) {
   const clean = typeof binaryPath === 'string' ? binaryPath.trim() : '';
   const next = clean ? { qBinary: clean } : {};
@@ -279,6 +301,7 @@ module.exports = {
   buildGuides,
   detectRuntime,
   loadRuntimeConfig,
+  resolveAndPersistRuntime,
   saveRuntimeConfig,
   setRuntimeBinary,
   DEFAULT_DOCS
