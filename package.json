@@ -11,15 +11,16 @@
   },
   "scripts": {
     "start": "node scripts/start-desktop.js",
-    "start:web": "node server.js",
-    "start:electrobun": "npx electrobun dev",
+    "build:web": "vite build",
+    "start:web": "npm run build:web && node server.js",
+    "start:electrobun": "npm run build:web && npx electrobun dev",
     "test": "node --test --test-concurrency=1 --test-timeout=30000 --test-force-exit",
     "demo:record": "playwright test demo/record-demo.spec.js",
     "demo:record:headed": "playwright test demo/record-demo.spec.js --headed",
-    "pack": "electron-builder --dir",
-    "dist": "electron-builder",
-    "start:electron": "electron .",
-    "build:electrobun": "npx electrobun build"
+    "pack": "npm run build:web && electron-builder --dir",
+    "dist": "npm run build:web && electron-builder",
+    "start:electron": "npm run build:web && electron .",
+    "build:electrobun": "npm run build:web && npx electrobun build"
   },
   "dependencies": {
     "electron-updater": "^6.6.2",
@@ -29,9 +30,16 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.58.2",
+    "@sveltejs/vite-plugin-svelte": "^6.2.4",
+    "@tailwindcss/vite": "^4.2.1",
+    "@types/node": "^25.3.5",
     "electrobun": "^1.15.1",
     "electron": "^37.2.0",
-    "electron-builder": "^26.0.12"
+    "electron-builder": "^26.0.12",
+    "svelte": "^5.53.7",
+    "tailwindcss": "^4.2.1",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.1"
   },
   "build": {
     "appId": "com.qanvas5.studio",
@@ -47,6 +55,7 @@
     "files": [
       "electron/**/*",
       "public/**/*",
+      "web-dist/**/*",
       "server.js",
       "package.json",
       "node_modules/**/*"

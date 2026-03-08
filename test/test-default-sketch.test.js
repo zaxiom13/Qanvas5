@@ -1,23 +1,13 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
-
-function extractDefaultSketch(source) {
-  const match = source.match(/const DEFAULT_SKETCH = `([\s\S]*?)`;/);
-  assert.ok(match, 'DEFAULT_SKETCH template string not found');
-  return match[1];
-}
+const { DEFAULT_SKETCH } = require('../shared/catalog-data.js');
 
 test('default sketch loads in q without syntax error', () => {
-  const appPath = path.join(__dirname, '..', 'public', 'app.js');
-  const source = fs.readFileSync(appPath, 'utf8');
-  const sketch = extractDefaultSketch(source);
-
   const sketchPath = path.join(os.tmpdir(), `qanvas5-default-${Date.now()}.q`);
-  fs.writeFileSync(sketchPath, `${sketch}\n`, 'utf8');
+  require('node:fs').writeFileSync(sketchPath, `${DEFAULT_SKETCH}\n`, 'utf8');
 
   const res =
     process.platform === 'win32'

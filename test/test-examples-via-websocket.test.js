@@ -1,10 +1,8 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-const vm = require('node:vm');
 const { spawn } = require('node:child_process');
 const WebSocket = require('ws');
+const { EXAMPLES } = require('../shared/catalog-data.js');
 
 const EXAMPLE_WS_TIMEOUT_MS = 12000;
 const EXAMPLE_WS_RETRIES = 1;
@@ -31,21 +29,6 @@ function waitForServer(child) {
       reject(new Error(`Server exited early (${code}). Output:\n${out}`));
     });
   });
-}
-
-function extractExamplesFromApp(source) {
-  const defaultSketchDecl = source.match(/const DEFAULT_SKETCH = `[\s\S]*?`;/);
-  assert.ok(defaultSketchDecl, 'DEFAULT_SKETCH declaration not found');
-
-  const examplesDecl = source.match(/const EXAMPLES = \[[\s\S]*?\n\];/);
-  assert.ok(examplesDecl, 'EXAMPLES declaration not found');
-
-  const sandbox = {};
-  const script = `${defaultSketchDecl[0]}\n${examplesDecl[0]}\nresult = EXAMPLES;`;
-  vm.runInNewContext(script, sandbox);
-
-  assert.ok(Array.isArray(sandbox.result), 'EXAMPLES must evaluate to an array');
-  return sandbox.result;
 }
 
 function getMainAndHelpers(example) {
@@ -149,10 +132,6 @@ async function runExampleViaWsWithRetry(port, payload, exampleId) {
 }
 
 test('bundled examples run via websocket API without runtime errors', async () => {
-  const appPath = path.join(__dirname, '..', 'public', 'app.js');
-  const source = fs.readFileSync(appPath, 'utf8');
-  const examples = extractExamplesFromApp(source);
-
   const port = 7250 + Math.floor(Math.random() * 200);
   const server = spawn(process.execPath, ['server.js'], {
     cwd: process.cwd(),
@@ -163,7 +142,7 @@ test('bundled examples run via websocket API without runtime errors', async () =
   try {
     await waitForServer(server);
 
-    for (const example of examples) {
+    for (const example of EXAMPLES) {
       const payload = getMainAndHelpers(example);
       const commands = await runExampleViaWsWithRetry(port, payload, example.id);
 

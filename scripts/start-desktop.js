@@ -1,33 +1,33 @@
 #!/usr/bin/env node
-const { spawn } = require('child_process');
+const { spawn, spawnSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
 const appEntry = '.';
+const projectRoot = path.join(__dirname, '..');
 const explicitRuntime = (process.env.QANVAS5_DESKTOP_RUNTIME || '').trim().toLowerCase();
 const electrobunBin = path.join(
-  __dirname,
-  '..',
+  projectRoot,
   'node_modules',
   '.bin',
   process.platform === 'win32' ? 'electrobun.cmd' : 'electrobun'
 );
 const electronBin = path.join(
-  __dirname,
-  '..',
+  projectRoot,
   'node_modules',
   '.bin',
   process.platform === 'win32' ? 'electron.cmd' : 'electron'
 );
+const npmBin = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 
 function runCommand(command, args) {
   const child = spawn(command, args, {
     stdio: 'inherit',
     shell: process.platform === 'win32',
-    cwd: path.join(__dirname, '..'),
+    cwd: projectRoot,
     env: {
       ...process.env,
-      QANVAS5_SOURCE_ROOT: process.env.QANVAS5_SOURCE_ROOT || path.join(__dirname, '..')
+      QANVAS5_SOURCE_ROOT: process.env.QANVAS5_SOURCE_ROOT || projectRoot
     }
   });
 
@@ -43,6 +43,22 @@ function runCommand(command, args) {
     console.error(`[desktop] Failed to launch '${command}':`, error.message);
     process.exit(1);
   });
+}
+
+function buildFrontend() {
+  const result = spawnSync(npmBin, ['run', 'build:web'], {
+    stdio: 'inherit',
+    shell: process.platform === 'win32',
+    cwd: projectRoot,
+    env: {
+      ...process.env,
+      QANVAS5_SOURCE_ROOT: process.env.QANVAS5_SOURCE_ROOT || projectRoot
+    }
+  });
+
+  if (result.status !== 0) {
+    process.exit(result.status ?? 1);
+  }
 }
 
 function hasLocalElectrobun() {
@@ -70,6 +86,8 @@ function launchElectrobun() {
 }
 
 async function main() {
+  buildFrontend();
+
   if (explicitRuntime === 'electron') {
     launchElectron();
     return;

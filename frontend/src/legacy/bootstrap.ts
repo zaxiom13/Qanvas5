@@ -1,4 +1,29 @@
-(function (globalScope) {
+// @ts-nocheck
+import './shared/catalog';
+import './shared/utils';
+import './core/dom';
+import './core/state';
+import './dom/console';
+import './dom/views';
+import './dom/help';
+import './dom/runtime';
+import './dom/editor';
+import './domain/workspace';
+import './domain/preview';
+import './domain/walkthrough';
+import './runtimeStatus';
+import './runGate';
+import './qSyntax';
+
+let started = false;
+
+export function bootstrapLegacyApp() {
+  if (started) {
+    return;
+  }
+  started = true;
+
+  const globalScope = typeof globalThis !== 'undefined' ? globalThis : window;
   const desktopApi = globalScope.qanvas5Desktop || null;
   const runtimeStatusApi = globalScope.qanvas5RuntimeStatus || null;
   const appModules = globalScope.Qanvas5App || {};
@@ -346,4 +371,6 @@
     initializeAppUi();
     consoleHub.log(`Fell back to local draft state: ${String(error?.message || error || 'Unknown bootstrap error')}`);
   });
-})(typeof globalThis !== 'undefined' ? globalThis : window);
+}
+
+export default bootstrapLegacyApp;

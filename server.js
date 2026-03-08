@@ -9,6 +9,7 @@ const { WebSocketServer } = require('ws');
 
 const ROOT = __dirname;
 const PUBLIC_DIR = path.join(ROOT, 'public');
+const WEB_DIST_DIR = path.join(ROOT, 'web-dist');
 const VENDOR_DIR = path.join(ROOT, 'node_modules');
 const PORT = Number(process.env.PORT || 5173);
 const EMPTY_SETUP_ERROR = 'setup not loaded';
@@ -1132,25 +1133,58 @@ async function serveStatic(req, res, getRuntimeStatus = null) {
     return;
   }
   const cleanPath = requestPath === '/' ? '/index.html' : requestPath;
-  const baseDir = cleanPath.startsWith('/vendor/') ? VENDOR_DIR : PUBLIC_DIR;
-  const relativePath = cleanPath.startsWith('/vendor/') ? cleanPath.replace(/^\/vendor/, '') : cleanPath;
-  const filePath = path.join(baseDir, relativePath);
 
-  if (!filePath.startsWith(baseDir)) {
-    res.writeHead(403);
-    res.end('Forbidden');
-    return;
+  async function tryServe(baseDir, relativePath) {
+    const filePath = path.join(baseDir, relativePath);
+    if (!filePath.startsWith(baseDir)) {
+      return 'forbidden';
+    }
+    try {
+      const content = await fsp.readFile(filePath);
+      const ext = path.extname(filePath);
+      res.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream' });
+      res.end(content);
+      return 'served';
+    } catch {
+      return 'missing';
+    }
   }
 
-  try {
-    const content = await fsp.readFile(filePath);
-    const ext = path.extname(filePath);
-    res.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream' });
-    res.end(content);
-  } catch {
-    res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
-    res.end('Not Found');
+  if (cleanPath.startsWith('/vendor/')) {
+    const vendorResult = await tryServe(VENDOR_DIR, cleanPath.replace(/^\/vendor/, ''));
+    if (vendorResult === 'forbidden') {
+      res.writeHead(403);
+      res.end('Forbidden');
+      return;
+    }
+    if (vendorResult === 'served') {
+      return;
+    }
+  } else {
+    for (const baseDir of [WEB_DIST_DIR, PUBLIC_DIR]) {
+      const result = await tryServe(baseDir, cleanPath);
+      if (result === 'forbidden') {
+        res.writeHead(403);
+        res.end('Forbidden');
+        return;
+      }
+      if (result === 'served') {
+        return;
+      }
+    }
+
+    if (!path.extname(cleanPath)) {
+      for (const baseDir of [WEB_DIST_DIR, PUBLIC_DIR]) {
+        const result = await tryServe(baseDir, '/index.html');
+        if (result === 'served') {
+          return;
+        }
+      }
+    }
   }
+
+  res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+  res.end('Not Found');
 }
 
 function startServer(options = {}) {

@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "allowJs": true,
+    "allowImportingTsExtensions": true,
+    "checkJs": false,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "verbatimModuleSyntax": true,
+    "types": ["node", "svelte"]
+  },
+  "include": [
+    "frontend/src/**/*.ts",
+    "frontend/src/**/*.d.ts",
+    "frontend/src/**/*.svelte",
+    "shared/**/*.ts",
+    "vite.config.ts"
+  ]
+}

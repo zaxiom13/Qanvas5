@@ -6,6 +6,7 @@ node_modules/
 tmp/
 *.tmp
 dist/
+web-dist/
 
 # Logs
 *.log
