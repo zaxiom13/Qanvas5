@@ -26,14 +26,8 @@
           <div class="menuWrap">
             <button id="menuBtn" class="ghost menuBtn" aria-label="Open menu" aria-expanded="false">☰</button>
             <div id="menuPanel" class="menuPanel" hidden>
-              <p id="menuCurrentSketch" class="menuLabel">Current: Unsaved draft</p>
-              <button id="menuSaveAsBtn" class="ghost menuItem">Save Sketch As…</button>
-              <button id="menuUpdateSavedBtn" class="ghost menuItem">Update Saved Sketch</button>
               <button id="menuResetBtn" class="ghost menuItem">Reset Example</button>
               <button id="menuWalkthroughBtn" class="ghost menuItem">Start Walkthrough</button>
-              <div class="menuDivider" aria-hidden="true"></div>
-              <div class="menuSectionTitle">Saved Sketches</div>
-              <div id="savedSketchesList" class="savedSketchesList"></div>
             </div>
           </div>
         </div>
@@ -60,6 +54,7 @@
         <section class="previewPane">
           <div class="paneHeader previewTabs">
             <button id="previewTabBtn" class="tabBtn active" type="button">Preview</button>
+            <button id="libraryTabBtn" class="tabBtn" type="button">Library</button>
             <button id="helpTabBtn" class="tabBtn" type="button">Help</button>
             <button id="setupTabBtn" class="tabBtn" type="button">Runtime</button>
             <label id="previewToggleWrap" class="previewToggle" for="fpsToggle">
@@ -96,6 +91,29 @@
             <section>
               <h3>Input and Document Fields</h3>
               <ul id="inputDocumentFields"></ul>
+            </section>
+          </div>
+          <div id="libraryView" class="libraryView" hidden>
+            <section class="libraryHero">
+              <div>
+                <p class="eyebrow">Sketch Library</p>
+                <h2 id="menuCurrentSketch">Current: Unsaved draft</h2>
+                <p class="librarySummary">
+                  Save named versions of sketches, reopen older work, and keep drafts from getting lost between app restarts.
+                </p>
+              </div>
+              <div class="libraryHeroActions">
+                <button id="menuSaveAsBtn" type="button">Save Sketch As…</button>
+                <button id="menuUpdateSavedBtn" class="ghost" type="button">Update Saved Sketch</button>
+              </div>
+            </section>
+
+            <section class="libraryShelf">
+              <div class="libraryShelfHeader">
+                <p class="eyebrow">Saved Sketches</p>
+                <strong id="savedSketchCount">0 saved</strong>
+              </div>
+              <div id="savedSketchesList" class="savedSketchesList"></div>
             </section>
           </div>
           <div id="setupView" class="setupView" hidden>

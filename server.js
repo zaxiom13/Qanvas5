@@ -249,11 +249,16 @@ const RUNTIME_BOOT = [
   '.p5translate:{[x;y] .p5.emit2["translate";x;y]};',
   '.p5rotate:{[x] .p5.emit1["rotate";x]};',
   '.p5scale:{[x;y] if[11h=type y; :.p5.emit1["scale";x]]; .p5.emit2["scale";x;y]};',
+  '.p5.errpayload:{[err;bt] `msg`trace!(string err;$[bt~();"";.Q.sbt bt])};',
+  '.p5.call0:{[fn] fn . enlist[::]};',
+  '.p5.callargs:{[payload] (payload`fn) . payload`args};',
+  '.p5.try0:{[fn] .Q.trp[.p5.call0;fn;{("error";.p5.errpayload[x;y])}]};',
+  '.p5.tryargs:{[payload] .Q.trp[.p5.callargs;payload;{("error";.p5.errpayload[x;y])}]};',
   '.p5.fromret:{[r] if[0h<>type r; :()]; if[0=count r; :()]; if[0h=type first r; :r]; if[10h=type first r; :enlist r]; :()};',
   '.p5.setstate:{[sid;r] if[104h=type r; :()]; if[0h=type r; if[0<count r; if["error"~first r; :r]]]; if[.p5.istable r; .p5.sset[sid;`state;$[99h=type r;value r;r]]; :()]; if[0<count .p5.sget[sid;`cmds]; :()]; ("error";"state must be a table")};',
-  '.p5.runsetup:{[sid;doc] .p5.ensuresession sid; priorSession:.p5.currentSession; .p5.begin[sid;`setup]; .p5.reset[]; .p5.clearstate[sid]; .p5.setdocument[sid;doc]; setupFn:.p5.sget[sid;`setup]; r:@[setupFn;doc;{("error";string x)}]; if[0h=type r; if[0<count r; if["error"~first r; r0:@[setupFn;();{("error";string x)}]; if[(104h<>type r0) and not ("error"~first r0); r:r0]]]]; .p5.finish priorSession; if[0h=type r; if[0<count r; if["error"~first r; :r]]]; sr:.p5.setstate[sid;r]; if[0h=type sr; if[0<count sr; if["error"~first sr; :sr]]]; if[0=count .p5.sget[sid;`cmds]; : .p5.fromret r]; .p5.sget[sid;`cmds]};',
-  '.p5.rundraw:{[sid;input;doc] .p5.ensuresession sid; priorSession:.p5.currentSession; .p5.begin[sid;`draw]; .p5.reset[]; .p5.setdocument[sid;doc]; drawFn:.p5.sget[sid;`draw]; st:.p5.sget[sid;`state]; r:.[drawFn;(st;input;doc);{("error";string x)}]; if[0h=type r; if[0<count r; if["error"~first r; r1:.[drawFn;(st;input);{("error";string x)}]; if[(104h<>type r1) and not ("error"~first r1); r:r1]]]]; if[0h=type r; if[0<count r; if["error"~first r; r2:.[drawFn;enlist input;{("error";string x)}]; if[(104h<>type r2) and not ("error"~first r2); r:r2]]]]; if[0h=type r; if[0<count r; if["error"~first r; r3:@[drawFn;();{("error";string x)}]; if[(104h<>type r3) and not ("error"~first r3); r:r3]]]]; .p5.finish priorSession; if[0h=type r; if[0<count r; if["error"~first r; :r]]]; sr:.p5.setstate[sid;r]; if[0h=type sr; if[0<count sr; if["error"~first sr; :sr]]]; if[0=count .p5.sget[sid;`cmds]; : .p5.fromret r]; .p5.sget[sid;`cmds]};',
-  '.p5.dispatch:{[id;fn] r:@[fn;();{("error";string x)}]; -1 .j.j (`id`result!(id;r))};'
+  '.p5.runsetup:{[sid;doc] .p5.ensuresession sid; priorSession:.p5.currentSession; .p5.begin[sid;`setup]; .p5.reset[]; .p5.clearstate[sid]; .p5.setdocument[sid;doc]; setupFn:.p5.sget[sid;`setup]; r:.p5.tryargs[`fn`args!(setupFn;enlist doc)]; if[0h=type r; if[0<count r; if["error"~first r; r0:.p5.try0[setupFn]; if[(104h<>type r0) and not ("error"~first r0); r:r0]]]]; .p5.finish priorSession; if[0h=type r; if[0<count r; if["error"~first r; :r]]]; sr:.p5.setstate[sid;r]; if[0h=type sr; if[0<count sr; if["error"~first sr; :sr]]]; if[0=count .p5.sget[sid;`cmds]; : .p5.fromret r]; .p5.sget[sid;`cmds]};',
+  '.p5.rundraw:{[sid;input;doc] .p5.ensuresession sid; priorSession:.p5.currentSession; .p5.begin[sid;`draw]; .p5.reset[]; .p5.setdocument[sid;doc]; drawFn:.p5.sget[sid;`draw]; st:.p5.sget[sid;`state]; r:.p5.tryargs[`fn`args!(drawFn;(st;input;doc))]; if[0h=type r; if[0<count r; if["error"~first r; r1:.p5.tryargs[`fn`args!(drawFn;(st;input))]; if[(104h<>type r1) and not ("error"~first r1); r:r1]]]]; if[0h=type r; if[0<count r; if["error"~first r; r2:.p5.tryargs[`fn`args!(drawFn;enlist input)]; if[(104h<>type r2) and not ("error"~first r2); r:r2]]]]; if[0h=type r; if[0<count r; if["error"~first r; r3:.p5.try0[drawFn]; if[(104h<>type r3) and not ("error"~first r3); r:r3]]]]; .p5.finish priorSession; if[0h=type r; if[0<count r; if["error"~first r; :r]]]; sr:.p5.setstate[sid;r]; if[0h=type sr; if[0<count sr; if["error"~first sr; :sr]]]; if[0=count .p5.sget[sid;`cmds]; : .p5.fromret r]; .p5.sget[sid;`cmds]};',
+  '.p5.dispatch:{[id;fn] r:.p5.try0[fn]; -1 .j.j (`id`result!(id;r))};'
 ].join('\n');
 
 const MIME = {
@@ -421,7 +426,19 @@ function toRuntimeError(result) {
   if (!Array.isArray(result) || result[0] !== 'error') {
     return null;
   }
-  const detail = Array.isArray(result[1]) ? result[1].join('') : String(result[1] || 'q runtime error');
+  const payload = result[1];
+  const asText = (value, fallback = 'q runtime error') => {
+    if (Array.isArray(value)) {
+      return value.map((part) => (part == null ? '' : String(part))).join('');
+    }
+    return String(value || fallback);
+  };
+  if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
+    const err = new Error(asText(payload.msg));
+    err.qTrace = asText(payload.trace, '').trim();
+    return err;
+  }
+  const detail = asText(payload);
   return new Error(detail);
 }
 
@@ -663,85 +680,42 @@ function splitTopLevelStatements(code) {
   return splitTopLevelStatementsDetailed(code).map((entry) => entry.text);
 }
 
-function formatCodeRange(source, startLine, endLine) {
-  const lines = String(source || '').split('\n');
-  if (!Number.isInteger(startLine) || !Number.isInteger(endLine) || startLine < 1 || endLine < startLine) {
+function cleanQTrace(traceText) {
+  const raw = String(traceText || '').trim();
+  if (!raw) {
     return '';
   }
 
-  const safeEnd = Math.min(endLine, lines.length);
-  const width = String(safeEnd).length;
-  return lines
-    .slice(startLine - 1, safeEnd)
-    .map((line, idx) => `${String(startLine + idx).padStart(width, ' ')} | ${line}`)
-    .join('\n');
-}
+  const demangled = raw.replace(/\.p5run[0-9a-f]+\./gi, '');
+  const lines = demangled.split('\n');
+  const internalFramePattern =
+    /(^|\s)\.p5\.(callargs|tryargs|rundraw|call0|try0|dispatch|runsetup)\b|^\s*\(\.Q\.trp\)\s*$|^\s*\{\.p5\.(runsetup|rundraw)\[/;
 
-function findTopLevelFunctionSource(code, fnName) {
-  let statements;
-  try {
-    statements = splitTopLevelStatementsDetailed(code);
-  } catch {
-    return null;
-  }
-
-  const pattern = new RegExp(`^\\s*${fnName}\\s*:\\s*\\{`);
-  return statements.find((stmt) => pattern.test(stmt.text)) || null;
-}
-
-function listTopLevelFunctions(code) {
-  let statements;
-  try {
-    statements = splitTopLevelStatementsDetailed(code);
-  } catch {
-    return new Map();
-  }
-
-  const out = new Map();
-  for (const stmt of statements) {
-    const m = stmt.text.match(/^\s*([A-Za-z_][A-Za-z0-9_.]*)\s*:\s*\{/);
-    if (m) {
-      out.set(m[1], stmt);
-    }
-  }
-  return out;
-}
-
-function extractCalledFunctionNames(sourceText) {
-  const src = String(sourceText || '');
-  const out = [];
-  const re = /\b([A-Za-z_][A-Za-z0-9_.]*)\s*\[/g;
-  let m = re.exec(src);
-  while (m) {
-    out.push(m[1]);
-    m = re.exec(src);
-  }
-  return Array.from(new Set(out));
-}
-
-function formatPhaseRuntimeError(phase, detail, code) {
-  const message = String(detail || 'q runtime error').trim();
-  const parts = [`Runtime error in ${phase}: ${message}`];
-  const fnMap = listTopLevelFunctions(code);
-  const fnStmt = fnMap.get(phase) || findTopLevelFunctionSource(code, phase);
-  if (fnStmt) {
-    parts.push(`Active ${phase} definition:\n${formatCodeRange(code, fnStmt.startLine, fnStmt.endLine)}`);
-    const genericSymbol = /^[A-Za-z][A-Za-z0-9_]*$/.test(message);
-    if (genericSymbol) {
-      const helperNames = extractCalledFunctionNames(fnStmt.text)
-        .filter((name) => name !== phase && name !== 'setup' && name !== 'draw' && fnMap.has(name))
-        .slice(0, 3);
-      for (const helperName of helperNames) {
-        const helperStmt = fnMap.get(helperName);
-        if (helperStmt) {
-          parts.push(
-            `Referenced helper ${helperName} definition:\n${formatCodeRange(code, helperStmt.startLine, helperStmt.endLine)}`
-          );
-        }
+  const kept = [];
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = lines[i];
+    if (internalFramePattern.test(line)) {
+      if (i + 1 < lines.length && /^\s*\^/.test(lines[i + 1])) {
+        i += 1;
       }
+      continue;
+    }
+
+    kept.push(line);
+    if (i + 1 < lines.length && /^\s*\^/.test(lines[i + 1])) {
+      kept.push(lines[i + 1]);
+      i += 1;
     }
   }
-  return parts.join('\n\n');
+
+  const normalized = kept.join('\n').trim();
+  return normalized || demangled;
+}
+
+function formatPhaseRuntimeError(phase, detail) {
+  const isErrorObject = detail instanceof Error;
+  const message = String(isErrorObject ? detail.message : detail || 'q runtime error').trim();
+  return `Runtime error in ${phase}: ${message}`;
 }
 
 function validateHelperTabCode(tabName, code) {
@@ -1219,7 +1193,7 @@ function startServer(options = {}) {
               const setupResult = await worker.runSetup(sessionId, docTableExpr);
               const setupError = toRuntimeError(setupResult);
               if (setupError) {
-                throw new Error(formatPhaseRuntimeError('setup', setupError.message, mergedCode));
+                throw new Error(formatPhaseRuntimeError('setup', setupError));
               }
               const setupCommands = normalizeCommands(setupResult);
               activeCode = mergedCode;
@@ -1235,7 +1209,7 @@ function startServer(options = {}) {
               const stepResult = await worker.runDraw(sessionId, inputTableExpr, docTableExpr);
               const stepError = toRuntimeError(stepResult);
               if (stepError) {
-                throw new Error(formatPhaseRuntimeError('draw', stepError.message, activeCode));
+                throw new Error(formatPhaseRuntimeError('draw', stepError));
               }
               const commands = normalizeCommands(stepResult);
               sendJson(ws, { type: 'stepResult', frame, commands });
@@ -1248,7 +1222,7 @@ function startServer(options = {}) {
           } catch (err) {
             const message =
               phase && !String(err?.message || '').includes(`Runtime error in ${phase}:`)
-                ? formatPhaseRuntimeError(phase, err?.message, phaseCode)
+                ? formatPhaseRuntimeError(phase, err?.message)
                 : String(err?.message || 'q runtime error');
             sendJson(ws, { type: 'runtimeError', message });
           }

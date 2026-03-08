@@ -13,15 +13,18 @@ const menuResetBtn = document.getElementById('menuResetBtn');
 const menuCurrentSketchEl = document.getElementById('menuCurrentSketch');
 const menuWalkthroughBtn = document.getElementById('menuWalkthroughBtn');
 const savedSketchesListEl = document.getElementById('savedSketchesList');
+const savedSketchCountEl = document.getElementById('savedSketchCount');
 const tabListEl = document.getElementById('tabList');
 const addTabBtn = document.getElementById('addTabBtn');
 const exampleBtn = document.getElementById('exampleBtn');
 const examplePanel = document.getElementById('examplePanel');
 const previewTabBtn = document.getElementById('previewTabBtn');
+const libraryTabBtn = document.getElementById('libraryTabBtn');
 const helpTabBtn = document.getElementById('helpTabBtn');
 const setupTabBtn = document.getElementById('setupTabBtn');
 const previewView = document.getElementById('previewView');
 const previewEmptyStateEl = document.getElementById('previewEmptyState');
+const libraryView = document.getElementById('libraryView');
 const helpView = document.getElementById('helpView');
 const setupView = document.getElementById('setupView');
 const previewToggleWrap = document.getElementById('previewToggleWrap');
@@ -772,10 +775,13 @@ function renderSavedSketches() {
   }
 
   savedSketchesListEl.innerHTML = '';
+  if (savedSketchCountEl) {
+    savedSketchCountEl.textContent = `${savedSketches.length} saved`;
+  }
   if (savedSketches.length === 0) {
     const empty = document.createElement('p');
     empty.className = 'savedSketchesEmpty';
-    empty.textContent = 'No saved sketches yet.';
+    empty.textContent = 'No saved sketches yet. Save the draft you are working on to start a reusable library.';
     savedSketchesListEl.appendChild(empty);
   } else {
     const ordered = [...savedSketches].sort((a, b) => b.updatedAt - a.updatedAt);
@@ -797,6 +803,9 @@ function renderSavedSketches() {
       });
       item.appendChild(meta);
 
+      const actions = document.createElement('div');
+      actions.className = 'savedSketchActions';
+
       const renameBtn = document.createElement('button');
       renameBtn.className = 'ghost savedSketchAction';
       renameBtn.type = 'button';
@@ -805,7 +814,7 @@ function renderSavedSketches() {
         event.stopPropagation();
         renameSavedSketch(sketch.id);
       });
-      item.appendChild(renameBtn);
+      actions.appendChild(renameBtn);
 
       const deleteBtn = document.createElement('button');
       deleteBtn.className = 'ghost savedSketchAction';
@@ -815,7 +824,9 @@ function renderSavedSketches() {
         event.stopPropagation();
         deleteSavedSketch(sketch.id);
       });
-      item.appendChild(deleteBtn);
+      actions.appendChild(deleteBtn);
+
+      item.appendChild(actions);
 
       savedSketchesListEl.appendChild(item);
     }
@@ -835,13 +846,17 @@ function renderTabs() {
   for (const tab of workspace.tabs) {
     const chip = document.createElement('div');
     chip.className = `tabChip ${tab.id === workspace.activeTabId ? 'active' : ''}`;
-    chip.textContent = tab.name;
     chip.addEventListener('click', () => switchTab(tab.id));
+
+    const label = document.createElement('span');
+    label.className = 'tabChipLabel';
+    label.textContent = tab.name;
+    chip.appendChild(label);
 
     if (tab.kind === 'helper') {
       const close = document.createElement('button');
       close.className = 'tabClose';
-      close.textContent = 'x';
+      close.textContent = '×';
       close.title = 'Delete helper tab';
       close.addEventListener('click', (event) => {
         event.stopPropagation();
@@ -1121,7 +1136,6 @@ function openSavedSketch(sketchId) {
   persistActiveTabCode();
   workspace = sanitizeWorkspace(clone(sketch.workspace));
   currentSketchId = sketch.id;
-  sketch.updatedAt = Math.max(Number(sketch.updatedAt) || 0, Date.now());
   setEditorCode(activeTab().code);
   renderTabs();
   saveWorkspace();
@@ -2026,31 +2040,49 @@ function closeExamplesMenu() {
 
 function showPreviewTab() {
   previewView.hidden = false;
+  libraryView.hidden = true;
   helpView.hidden = true;
   setupView.hidden = true;
   previewToggleWrap.hidden = false;
   previewTabBtn.classList.add('active');
+  libraryTabBtn.classList.remove('active');
+  helpTabBtn.classList.remove('active');
+  setupTabBtn.classList.remove('active');
+}
+
+function showLibraryTab() {
+  previewView.hidden = true;
+  libraryView.hidden = false;
+  helpView.hidden = true;
+  setupView.hidden = true;
+  previewToggleWrap.hidden = true;
+  libraryTabBtn.classList.add('active');
+  previewTabBtn.classList.remove('active');
   helpTabBtn.classList.remove('active');
   setupTabBtn.classList.remove('active');
 }
 
 function showHelpTab() {
   previewView.hidden = true;
+  libraryView.hidden = true;
   helpView.hidden = false;
   setupView.hidden = true;
   previewToggleWrap.hidden = true;
   helpTabBtn.classList.add('active');
   previewTabBtn.classList.remove('active');
+  libraryTabBtn.classList.remove('active');
   setupTabBtn.classList.remove('active');
 }
 
 function showSetupTab() {
   previewView.hidden = true;
+  libraryView.hidden = true;
   helpView.hidden = true;
   setupView.hidden = false;
   previewToggleWrap.hidden = true;
   setupTabBtn.classList.add('active');
   previewTabBtn.classList.remove('active');
+  libraryTabBtn.classList.remove('active');
   helpTabBtn.classList.remove('active');
 }
 
@@ -2082,6 +2114,10 @@ examplePanel.addEventListener('click', (event) => {
 
 previewTabBtn.addEventListener('click', () => {
   showPreviewTab();
+});
+
+libraryTabBtn?.addEventListener('click', () => {
+  showLibraryTab();
 });
 
 helpTabBtn.addEventListener('click', () => {

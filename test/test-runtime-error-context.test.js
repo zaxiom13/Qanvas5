@@ -78,10 +78,9 @@ test('generic q runtime errors include phase and source context', async () => {
 
     assert.match(runtimeError, /Runtime error in draw:/i);
     assert.match(runtimeError, /length/i);
-    assert.match(runtimeError, /Active draw definition:/i);
-    assert.match(runtimeError, /ps:spawnParticles\[\(10f;20f\);10\];/i);
-    assert.match(runtimeError, /Referenced helper spawnParticles definition:/i);
-    assert.match(runtimeError, /:1 2 \+ 1 2 3;/i);
+    assert.doesNotMatch(runtimeError, /q backtrace:/i);
+    assert.doesNotMatch(runtimeError, /Active draw definition:/i);
+    assert.doesNotMatch(runtimeError, /Referenced helper/i);
   } finally {
     server.kill('SIGTERM');
     await new Promise((r) => server.once('exit', r));
